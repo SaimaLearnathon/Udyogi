@@ -1,5 +1,12 @@
 import { apiRequest } from "./client";
-import type { PublicCandidate, PublicCandidateDetail, PublicListingDetail, PublicListingSummary, SentRequest } from "../types/listing";
+import type {
+  PublicCandidate,
+  PublicCandidateDetail,
+  PublicListingDetail,
+  PublicListingSummary,
+  SentRequest,
+  TeamMember
+} from "../types/listing";
 
 export function listPublicListings(token: string) {
   return apiRequest<PublicListingSummary[]>("/api/listings", {
@@ -27,6 +34,12 @@ export function getCandidateProfile(token: string, listingId: string, candidateI
 
 export function listSentRequests(token: string, listingId: string) {
   return apiRequest<SentRequest[]>(`/api/listings/${listingId}/requests`, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+}
+
+export function listTeamMembers(token: string, listingId: string) {
+  return apiRequest<TeamMember[]>(`/api/listings/${listingId}/team`, {
     headers: { Authorization: `Bearer ${token}` }
   });
 }

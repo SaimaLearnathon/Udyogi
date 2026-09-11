@@ -2,6 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { pool } from "../../db/pool.js";
 import { normalizeBengaliText } from "../../utils/text.js";
 import { requireUserId } from "../auth/session.js";
+import { loadCurrentProjects } from "../requests/routes.js";
 
 interface RequiredSkill {
   skill_tag: string;
@@ -294,17 +295,18 @@ export async function registerListingRoutes(app: FastifyInstance) {
       region: founderLocation.location_region
     });
 
-    const requestRow = await pool.query<{ status: string }>(
-      "select status from team_requests where thesis_id = $1 and candidate_id = $2",
-      [id, candidateId]
-    );
+    const [requestRow, currentProjects] = await Promise.all([
+      pool.query<{ status: string }>("select status from team_requests where thesis_id = $1 and candidate_id = $2", [id, candidateId]),
+      loadCurrentProjects(candidateId)
+    ]);
 
     return reply.send({
       ...toPublicCandidate(candidateRow),
       score: score.total,
       scoreBreakdown: score.breakdown,
       matchedSkills: score.matchedSkills,
-      requestStatus: requestRow.rows[0]?.status ?? null
+      requestStatus: requestRow.rows[0]?.status ?? null,
+      currentProjects
     });
   });
 
@@ -327,6 +329,47 @@ export async function registerListingRoutes(app: FastifyInstance) {
         status: row.status,
         skillTag: row.skill_tag,
         createdAt: row.created_at
+      }))
+    );
+  });
+
+  app.get("/listings/:id/team", async (request, reply) => {
+    const userId = await requireUserId(request, reply, pool);
+    if (!userId) return;
+
+    const { id } = request.params as { id: string };
+    const listing = await findOwnedListing(id, userId);
+    if (!listing) return reply.code(404).send({ message: "লিস্টিং পাওয়া যায়নি" });
+
+    const result = await pool.query<{
+      candidate_id: string;
+      public_name: string;
+      public_bio: string;
+      availability: string;
+      skill_tag: string | null;
+      responded_at: string | null;
+      field_label: string | null;
+    }>(
+      `select tr.candidate_id, u.public_name, u.public_bio, u.availability, tr.skill_tag, tr.responded_at,
+              ft.label_bn as field_label
+       from team_requests tr
+       join users u on u.id = tr.candidate_id
+       left join user_fields uf on uf.user_id = u.id
+       left join field_taxonomy ft on ft.id = uf.field_id
+       where tr.thesis_id = $1 and tr.status = 'accepted'
+       order by tr.responded_at desc`,
+      [id]
+    );
+
+    return reply.send(
+      result.rows.map((row) => ({
+        candidateId: row.candidate_id,
+        publicName: row.public_name,
+        publicBio: row.public_bio,
+        availability: row.availability,
+        field: row.field_label,
+        skillTag: row.skill_tag,
+        joinedAt: row.responded_at
       }))
     );
   });

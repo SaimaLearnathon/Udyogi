@@ -1,4 +1,4 @@
-import type { Availability, PublicSocials } from "./profile";
+import type { Availability, PublicCurrentProject, PublicSocials } from "./profile";
 
 export interface ListingSkill {
   skillTag: string;
@@ -51,6 +51,7 @@ export interface PublicCandidate {
 
 export interface PublicCandidateDetail extends PublicCandidate {
   requestStatus: "pending" | "accepted" | "declined" | null;
+  currentProjects: PublicCurrentProject[];
 }
 
 export interface SentRequest {
@@ -58,4 +59,14 @@ export interface SentRequest {
   status: "pending" | "accepted" | "declined";
   skillTag: string | null;
   createdAt: string;
+}
+
+export interface TeamMember {
+  candidateId: string;
+  publicName: string;
+  publicBio: string;
+  availability: Availability;
+  field: string | null;
+  skillTag: string | null;
+  joinedAt: string | null;
 }

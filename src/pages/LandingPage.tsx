@@ -34,7 +34,8 @@ const demoUser: PublicUser = {
   socials: { linkedinUrl: null, facebookUrl: null, portfolioUrl: null },
   contributionCount: 0,
   successRate: null,
-  eligibility: ""
+  eligibility: "",
+  currentProjects: []
 };
 
 export function LandingPage() {

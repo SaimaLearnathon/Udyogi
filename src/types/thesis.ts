@@ -55,4 +55,6 @@ export interface ThesisSummary {
   parsedData: ThesisParsedData;
   confirmedAt: string | null;
   createdAt: string;
+  isOwner?: boolean;
+  founderName?: string;
 }

@@ -49,8 +49,18 @@ export async function registerThesisRoutes(app: FastifyInstance) {
     if (!userId) return;
 
     const { id } = request.params as { id: string };
-    const result = await pool.query<ThesisRow>(
-      "select id, session_id, version, status, parsed_data, confirmed_at, created_at from theses where id = $1 and user_id = $2",
+    const result = await pool.query<ThesisRow & { owner_id: string; founder_name: string }>(
+      `select t.id, t.session_id, t.version, t.status, t.parsed_data, t.confirmed_at, t.created_at,
+              t.user_id as owner_id, u.public_name as founder_name
+       from theses t
+       join users u on u.id = t.user_id
+       where t.id = $1
+         and (
+           t.user_id = $2
+           or exists (
+             select 1 from team_requests tr where tr.thesis_id = t.id and tr.candidate_id = $2 and tr.status = 'accepted'
+           )
+         )`,
       [id, userId]
     );
     const thesis = result.rows[0];
@@ -63,7 +73,9 @@ export async function registerThesisRoutes(app: FastifyInstance) {
       status: thesis.status,
       parsedData: thesis.parsed_data,
       confirmedAt: thesis.confirmed_at,
-      createdAt: thesis.created_at
+      createdAt: thesis.created_at,
+      isOwner: thesis.owner_id === userId,
+      founderName: thesis.founder_name
     });
   });
 

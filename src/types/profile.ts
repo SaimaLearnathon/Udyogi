@@ -13,6 +13,15 @@ export interface PublicSocials {
   portfolioUrl: string | null;
 }
 
+export interface PublicCurrentProject {
+  thesisId: string;
+  title: string;
+  pitch: string;
+  founderName: string;
+  skillTag: string | null;
+  joinedAt: string | null;
+}
+
 export interface PublicUser {
   id: string;
   publicName: string;
@@ -28,6 +37,7 @@ export interface PublicUser {
   contributionCount: number;
   successRate: number | null;
   eligibility: string;
+  currentProjects: PublicCurrentProject[];
 }
 
 export interface ProfilePayload {

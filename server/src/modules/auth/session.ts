@@ -26,6 +26,15 @@ export interface UserRow {
   eligibility: string;
 }
 
+export interface PublicCurrentProject {
+  thesisId: string;
+  title: string;
+  pitch: string;
+  founderName: string;
+  skillTag: string | null;
+  joinedAt: string | null;
+}
+
 export interface PublicUser {
   id: string;
   publicName: string;
@@ -49,6 +58,7 @@ export interface PublicUser {
   contributionCount: number;
   successRate: number | null;
   eligibility: string;
+  currentProjects: PublicCurrentProject[];
 }
 
 export function emailLookup(email: string) {
@@ -63,7 +73,10 @@ export function hashSessionToken(token: string) {
   return createHash("sha256").update(token).digest("hex");
 }
 
-export function toPublicUser(row: UserRow, related: { field: string | null; skills: string[]; interests: string[] }): PublicUser {
+export function toPublicUser(
+  row: UserRow,
+  related: { field: string | null; skills: string[]; interests: string[] }
+): Omit<PublicUser, "currentProjects"> {
   return {
     id: row.id,
     publicName: row.public_name,

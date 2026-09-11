@@ -1,6 +1,6 @@
-import { Bot, FileText, Handshake, Home, Inbox, Lightbulb, UserRound, type LucideIcon } from "lucide-react";
+import { Bot, ClipboardList, FileText, Handshake, Home, Inbox, Lightbulb, UserRound, type LucideIcon } from "lucide-react";
 
-export type AppPageId = "onboarding" | "consultant" | "workspace" | "thesis" | "matching" | "messages" | "profile";
+export type AppPageId = "onboarding" | "consultant" | "workspace" | "thesis" | "matching" | "myWork" | "messages" | "profile";
 
 export interface NavItem {
   id: AppPageId;
@@ -30,6 +30,7 @@ export const navGroups: NavGroup[] = [
     label: "সংযোগ",
     items: [
       { id: "matching", label: "ম্যাচিং", icon: Handshake },
+      { id: "myWork", label: "আমার কাজ", icon: ClipboardList },
       { id: "messages", label: "মেসেজ", icon: Inbox }
     ]
   },

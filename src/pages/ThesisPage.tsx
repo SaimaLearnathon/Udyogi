@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { ArrowLeft, CheckCircle2, FileText, Loader2, LogIn, Sparkles, Trash2 } from "lucide-react";
+import { ArrowLeft, CheckCircle2, FileText, Loader2, LogIn, Sparkles, Trash2, Users } from "lucide-react";
 import { ThesisSectionList } from "../components/thesis/ThesisSectionList";
 import { PageHeader } from "../components/ui/PageHeader";
 import { Card } from "../components/ui/Card";
@@ -202,34 +202,57 @@ function ThesisDetail({ thesisId }: { thesisId: string }) {
     );
   }
 
+  const isOwner = thesis.isOwner ?? true;
+
   return (
     <section>
-      {backLink}
+      {isOwner ? (
+        backLink
+      ) : (
+        <button
+          type="button"
+          onClick={() => goTo("myWork")}
+          className="mb-4 flex items-center gap-1.5 text-sm text-base-content/60 hover:text-base-content"
+        >
+          <ArrowLeft size={14} />
+          আমার কাজ
+        </button>
+      )}
       <PageHeader
         icon={FileText}
         title={thesis.parsedData.idea_summary?.solution || "থিসিস"}
-        subtitle={`ভার্সন ${thesis.version} · আটটি কাঠামোবদ্ধ সেকশনে পরিকল্পনা পর্যালোচনা।`}
+        subtitle={
+          isOwner
+            ? `ভার্সন ${thesis.version} · আটটি কাঠামোবদ্ধ সেকশনে পরিকল্পনা পর্যালোচনা।`
+            : `প্রতিষ্ঠাতা: ${thesis.founderName ?? "—"} · আটটি কাঠামোবদ্ধ সেকশনে পরিকল্পনা পর্যালোচনা।`
+        }
         action={
-          <div className="flex items-center gap-2">
-            {thesis.status === "confirmed" ? (
-              <span className="badge badge-success gap-1.5">
-                <CheckCircle2 size={13} /> নিশ্চিত
-              </span>
-            ) : (
-              <motion.button
-                whileHover={{ y: -1 }}
-                whileTap={{ scale: 0.97 }}
-                type="button"
-                onClick={handleConfirm}
-                disabled={confirming || deleting}
-                className="btn btn-primary btn-sm gap-1.5"
-              >
-                {confirming ? <Loader2 size={15} className="animate-spin" /> : <CheckCircle2 size={15} />}
-                থিসিস নিশ্চিত করুন
-              </motion.button>
-            )}
-            <ConfirmButton icon={Trash2} label="মুছুন" confirmLabel="নিশ্চিত?" disabled={deleting} onConfirm={handleDelete} />
-          </div>
+          isOwner ? (
+            <div className="flex items-center gap-2">
+              {thesis.status === "confirmed" ? (
+                <span className="badge badge-success gap-1.5">
+                  <CheckCircle2 size={13} /> নিশ্চিত
+                </span>
+              ) : (
+                <motion.button
+                  whileHover={{ y: -1 }}
+                  whileTap={{ scale: 0.97 }}
+                  type="button"
+                  onClick={handleConfirm}
+                  disabled={confirming || deleting}
+                  className="btn btn-primary btn-sm gap-1.5"
+                >
+                  {confirming ? <Loader2 size={15} className="animate-spin" /> : <CheckCircle2 size={15} />}
+                  থিসিস নিশ্চিত করুন
+                </motion.button>
+              )}
+              <ConfirmButton icon={Trash2} label="মুছুন" confirmLabel="নিশ্চিত?" disabled={deleting} onConfirm={handleDelete} />
+            </div>
+          ) : (
+            <span className="badge badge-outline gap-1.5">
+              <Users size={13} /> টিম সদস্য
+            </span>
+          )
         }
       />
       {error && (

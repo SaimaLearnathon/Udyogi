@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Award, Briefcase, Facebook, GraduationCap, Globe, Linkedin, Loader2, LogIn, ArrowLeft, MapPin, Star } from "lucide-react";
 import { PageHeader } from "../components/ui/PageHeader";
 import { Card } from "../components/ui/Card";
+import { CurrentProjectsCard } from "../components/profile/CurrentProjectsCard";
 import { getPublicProfile } from "../api/profile";
 import { useAuth } from "../context/AuthContext";
 import { useNavigation } from "../context/NavigationContext";
@@ -205,6 +206,8 @@ export function UserProfilePage() {
               </div>
             </Card>
           )}
+
+          <CurrentProjectsCard projects={profile.currentProjects} />
         </div>
       </div>
     </section>

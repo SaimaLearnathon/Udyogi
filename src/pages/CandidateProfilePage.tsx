@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { PageHeader } from "../components/ui/PageHeader";
 import { Card } from "../components/ui/Card";
+import { CurrentProjectsCard } from "../components/profile/CurrentProjectsCard";
 import { getCandidateProfile, sendTeamRequest } from "../api/listings";
 import { useAuth } from "../context/AuthContext";
 import { useNavigation } from "../context/NavigationContext";
@@ -297,6 +298,8 @@ export function CandidateProfilePage() {
               )}
             </div>
           </Card>
+
+          <CurrentProjectsCard projects={candidate.currentProjects} />
         </div>
       </div>
     </section>

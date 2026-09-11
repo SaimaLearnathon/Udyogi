@@ -1,5 +1,12 @@
 import { apiRequest } from "./client";
 import type { IncomingRequest } from "../types/request";
+import type { PublicCurrentProject } from "../types/profile";
+
+export function listMyProjects(token: string) {
+  return apiRequest<PublicCurrentProject[]>("/api/projects/mine", {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+}
 
 export function listIncomingRequests(token: string) {
   return apiRequest<IncomingRequest[]>("/api/requests/incoming", {

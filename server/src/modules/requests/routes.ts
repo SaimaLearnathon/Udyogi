@@ -15,7 +15,53 @@ interface IncomingRequestRow {
   idea_pitch: string;
 }
 
+export interface CurrentProject {
+  thesisId: string;
+  title: string;
+  pitch: string;
+  founderName: string;
+  skillTag: string | null;
+  joinedAt: string | null;
+}
+
+export async function loadCurrentProjects(userId: string): Promise<CurrentProject[]> {
+  const result = await pool.query<{
+    thesis_id: string;
+    title: string;
+    pitch: string;
+    founder_name: string;
+    skill_tag: string | null;
+    responded_at: string | null;
+  }>(
+    `select tr.thesis_id, t.parsed_data->'idea_summary'->>'solution' as title,
+            t.parsed_data->'idea_summary'->>'value_proposition' as pitch,
+            u.public_name as founder_name, tr.skill_tag, tr.responded_at
+     from team_requests tr
+     join theses t on t.id = tr.thesis_id
+     join users u on u.id = tr.founder_id
+     where tr.candidate_id = $1 and tr.status = 'accepted'
+     order by tr.responded_at desc`,
+    [userId]
+  );
+
+  return result.rows.map((row) => ({
+    thesisId: row.thesis_id,
+    title: row.title,
+    pitch: row.pitch,
+    founderName: row.founder_name,
+    skillTag: row.skill_tag,
+    joinedAt: row.responded_at
+  }));
+}
+
 export async function registerRequestRoutes(app: FastifyInstance) {
+  app.get("/projects/mine", async (request, reply) => {
+    const userId = await requireUserId(request, reply, pool);
+    if (!userId) return;
+
+    return reply.send(await loadCurrentProjects(userId));
+  });
+
   app.get("/requests/incoming", async (request, reply) => {
     const userId = await requireUserId(request, reply, pool);
     if (!userId) return;

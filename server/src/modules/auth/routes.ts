@@ -3,6 +3,7 @@ import type { PoolClient } from "pg";
 import { pool } from "../../db/pool.js";
 import type { Queryable } from "../../db/queryable.js";
 import { normalizeBengaliText } from "../../utils/text.js";
+import { loadCurrentProjects } from "../requests/routes.js";
 import { hashPassword, verifyPassword } from "./password.js";
 import {
   createSession,
@@ -218,8 +219,8 @@ async function findUserByEmail(db: Queryable, email: string) {
 }
 
 async function buildPublicUser(db: Queryable, row: UserRow): Promise<PublicUser> {
-  const related = await loadUserRelations(db, row.id);
-  return toPublicUser(row, related);
+  const [related, currentProjects] = await Promise.all([loadUserRelations(db, row.id), loadCurrentProjects(row.id)]);
+  return { ...toPublicUser(row, related), currentProjects };
 }
 
 export async function registerAuthRoutes(app: FastifyInstance) {

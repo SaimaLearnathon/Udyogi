@@ -1,14 +1,14 @@
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { ArrowLeft, Briefcase, ChevronDown, Handshake, Loader2, LogIn, MapPin, Search, Send, Users } from "lucide-react";
+import { ArrowLeft, Briefcase, CheckCircle2, ChevronDown, Handshake, Loader2, LogIn, MapPin, Search, Send, Users } from "lucide-react";
 import { PageHeader } from "../components/ui/PageHeader";
 import { Card } from "../components/ui/Card";
-import { findCandidatesForSkill, getPublicListing, listPublicListings, listSentRequests } from "../api/listings";
+import { findCandidatesForSkill, getPublicListing, listPublicListings, listSentRequests, listTeamMembers } from "../api/listings";
 import { useAuth } from "../context/AuthContext";
 import { useNavigation } from "../context/NavigationContext";
 import { usePageTitle } from "../hooks/usePageTitle";
 import { staggerContainer } from "../config/motion";
-import type { PublicCandidate, PublicListingDetail, PublicListingSummary, SentRequest } from "../types/listing";
+import type { PublicCandidate, PublicListingDetail, PublicListingSummary, SentRequest, TeamMember } from "../types/listing";
 
 const priorityTone: Record<string, string> = {
   High: "badge-error",
@@ -157,6 +157,7 @@ function ListingDetail({ listingId }: { listingId: string }) {
   const [expandedSkill, setExpandedSkill] = useState<string | null>(null);
   const [candidates, setCandidates] = useState<Record<string, PublicCandidate[] | "loading" | "error">>({});
   const [sentRequests, setSentRequests] = useState<Record<string, SentRequest>>({});
+  const [team, setTeam] = useState<TeamMember[] | null>(null);
 
   useEffect(() => {
     if (!token) return;
@@ -179,6 +180,12 @@ function ListingDetail({ listingId }: { listingId: string }) {
       .then((data) => {
         if (cancelled) return;
         setSentRequests(Object.fromEntries(data.map((request) => [request.candidateId, request])));
+      })
+      .catch(() => undefined);
+
+    listTeamMembers(token, listingId)
+      .then((data) => {
+        if (!cancelled) setTeam(data);
       })
       .catch(() => undefined);
 
@@ -268,6 +275,46 @@ function ListingDetail({ listingId }: { listingId: string }) {
           <Card className="p-5">
             <p className="mb-1.5 text-xs font-semibold uppercase tracking-wider text-base-content/45">প্রতিষ্ঠাতা সম্পর্কে</p>
             <p className="text-sm text-base-content/80">{listing.founderBio || "কোনো পরিচিতি দেওয়া হয়নি।"}</p>
+          </Card>
+
+          <Card className="p-5">
+            <p className="mb-3 flex items-center justify-between gap-2">
+              <span className="flex items-center gap-1.5 text-sm font-semibold text-base-content/70">
+                <Users size={14} className="text-primary" /> টিম সদস্য
+              </span>
+              {team && team.length > 0 && <span className="badge badge-primary badge-sm">{team.length}</span>}
+            </p>
+            {!team ? (
+              <div className="flex items-center gap-2 text-sm text-base-content/50">
+                <Loader2 size={14} className="animate-spin" /> লোড হচ্ছে...
+              </div>
+            ) : team.length === 0 ? (
+              <p className="text-sm text-base-content/50">এখনো কেউ টিমে যোগ দেননি। প্রয়োজনীয় দক্ষতা থেকে টিমমেট খুঁজে অনুরোধ পাঠান।</p>
+            ) : (
+              <div className="space-y-2">
+                {team.map((member) => (
+                  <button
+                    key={member.candidateId}
+                    type="button"
+                    onClick={() => goTo("user", { id: member.candidateId })}
+                    className="flex w-full items-center gap-3 rounded-field p-2 text-left transition-colors hover:bg-base-200"
+                  >
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-success/10 text-sm font-semibold text-success">
+                      {member.publicName[0]}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium">{member.publicName}</p>
+                      <p className="truncate text-xs text-base-content/50">
+                        {member.skillTag ?? availabilityLabel[member.availability]}
+                      </p>
+                    </div>
+                    <span className="badge badge-success badge-outline badge-sm shrink-0 gap-1">
+                      <CheckCircle2 size={10} /> সক্রিয়
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
           </Card>
         </div>
 

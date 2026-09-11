@@ -6,6 +6,7 @@ import { ApiError } from "../api/client";
 import { availabilityOptions, fieldOptions, interestOptions, precisionOptions, skillOptions } from "../config/profile";
 import { PageHeader } from "../components/ui/PageHeader";
 import { Card } from "../components/ui/Card";
+import { CurrentProjectsCard } from "../components/profile/CurrentProjectsCard";
 import { useAuth } from "../context/AuthContext";
 import { usePageTitle } from "../hooks/usePageTitle";
 import type { Availability, LocationPrecision } from "../types/profile";
@@ -357,6 +358,10 @@ export function ProfilePage() {
             </label>
           </div>
         </SectionCard>
+      </div>
+
+      <div className="mt-4">
+        <CurrentProjectsCard projects={user?.currentProjects ?? []} emptyMessage="এখনো কোনো প্রজেক্টে যুক্ত হননি।" />
       </div>
 
       <Card className="mt-4 flex items-center gap-2.5 p-4 text-sm text-base-content/60">
