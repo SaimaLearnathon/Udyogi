@@ -6,7 +6,7 @@ interface NavigationState {
   goTo: (page: PageId) => void;
 }
 
-const defaultPage: PageId = "onboarding";
+const defaultPage: PageId = "landing";
 const NavigationContext = createContext<NavigationState | null>(null);
 
 function readPage(): PageId {

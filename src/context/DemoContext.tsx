@@ -1,10 +1,11 @@
 import { createContext, useContext } from "react";
-import { demoListings, demoMessages, demoTheses } from "../data/demoData";
+import { demoListings, demoMessages, demoTheses, nearbyFounders, supportOrganizations } from "../data/demoData";
 
-const DemoContext = createContext({ demoListings, demoMessages, demoTheses });
+const value = { demoListings, demoMessages, demoTheses, nearbyFounders, supportOrganizations };
+const DemoContext = createContext(value);
 
 export function DemoProvider({ children }: { children: React.ReactNode }) {
-  return <DemoContext.Provider value={{ demoListings, demoMessages, demoTheses }}>{children}</DemoContext.Provider>;
+  return <DemoContext.Provider value={value}>{children}</DemoContext.Provider>;
 }
 
 export function useDemo() {

@@ -1,14 +1,44 @@
-import { Bot, FileText, Handshake, Home, Inbox, Lightbulb, LogIn, UserRound } from "lucide-react";
+import { Bot, FileText, Handshake, Home, Inbox, Lightbulb, UserRound, type LucideIcon } from "lucide-react";
 
-export const pages = [
-  { id: "onboarding", label: "শুরু", icon: Home },
-  { id: "login", label: "লগইন", icon: LogIn },
-  { id: "consultant", label: "কনসালট্যান্ট", icon: Bot },
-  { id: "workspace", label: "ওয়ার্কস্পেস", icon: Lightbulb },
-  { id: "thesis", label: "থিসিস", icon: FileText },
-  { id: "matching", label: "ম্যাচিং", icon: Handshake },
-  { id: "messages", label: "মেসেজ", icon: Inbox },
-  { id: "profile", label: "প্রোফাইল", icon: UserRound }
-] as const;
+export type AppPageId = "onboarding" | "consultant" | "workspace" | "thesis" | "matching" | "messages" | "profile";
 
-export type PageId = (typeof pages)[number]["id"];
+export interface NavItem {
+  id: AppPageId;
+  label: string;
+  icon: LucideIcon;
+}
+
+export interface NavGroup {
+  label: string;
+  items: NavItem[];
+}
+
+export const navGroups: NavGroup[] = [
+  {
+    label: "প্রধান",
+    items: [{ id: "onboarding", label: "হোম", icon: Home }]
+  },
+  {
+    label: "তৈরি করুন",
+    items: [
+      { id: "consultant", label: "কনসালট্যান্ট", icon: Bot },
+      { id: "workspace", label: "ওয়ার্কস্পেস", icon: Lightbulb },
+      { id: "thesis", label: "থিসিস", icon: FileText }
+    ]
+  },
+  {
+    label: "সংযোগ",
+    items: [
+      { id: "matching", label: "ম্যাচিং", icon: Handshake },
+      { id: "messages", label: "মেসেজ", icon: Inbox }
+    ]
+  },
+  {
+    label: "অ্যাকাউন্ট",
+    items: [{ id: "profile", label: "প্রোফাইল", icon: UserRound }]
+  }
+];
+
+export const pages: NavItem[] = navGroups.flatMap((group) => group.items);
+
+export type PageId = AppPageId | "landing" | "login";

@@ -2,7 +2,9 @@ import { AppShell } from "./components/layout/AppShell";
 import { AuthProvider } from "./context/AuthContext";
 import { DemoProvider } from "./context/DemoContext";
 import { NavigationProvider, useNavigation } from "./context/NavigationContext";
+import { ThemeProvider } from "./context/ThemeContext";
 import { ConsultantPage } from "./pages/ConsultantPage";
+import { LandingPage } from "./pages/LandingPage";
 import { LoginPage } from "./pages/LoginPage";
 import { MatchingPage } from "./pages/MatchingPage";
 import { MessagesPage } from "./pages/MessagesPage";
@@ -15,6 +17,7 @@ function CurrentPage() {
   const { page } = useNavigation();
 
   const pages = {
+    landing: <LandingPage />,
     onboarding: <OnboardingPage />,
     login: <LoginPage />,
     consultant: <ConsultantPage />,
@@ -25,19 +28,21 @@ function CurrentPage() {
     profile: <ProfilePage />
   };
 
-  return pages[page] ?? <OnboardingPage />;
+  return pages[page] ?? <LandingPage />;
 }
 
 export default function App() {
   return (
-    <AuthProvider>
-      <DemoProvider>
-        <NavigationProvider>
-          <AppShell>
-            <CurrentPage />
-          </AppShell>
-        </NavigationProvider>
-      </DemoProvider>
-    </AuthProvider>
+    <ThemeProvider>
+      <AuthProvider>
+        <DemoProvider>
+          <NavigationProvider>
+            <AppShell>
+              <CurrentPage />
+            </AppShell>
+          </NavigationProvider>
+        </DemoProvider>
+      </AuthProvider>
+    </ThemeProvider>
   );
 }
