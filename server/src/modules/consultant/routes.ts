@@ -453,9 +453,17 @@ export async function registerConsultantRoutes(app: FastifyInstance) {
         // The model sometimes writes the step-1 summary but skips the request_confirmation
         // tool call it's supposed to make right after. Once enough of step 1 has happened,
         // fall back to showing the button ourselves so the user is never stuck without a
-        // way to proceed to the full analysis.
+        // way to proceed to the full analysis. But skip this while the reply still ends in
+        // a question mark - that means the model is still gathering info, not summarizing,
+        // and showing the button there would offer to "proceed" before there's enough info.
+        const trimmedText = assistantText.trim();
+        // allow trailing markdown emphasis/whitespace after the "?" (e.g. "...শহর?**")
+        const stillAskingQuestion = /\?[\s*_`]*$/.test(trimmedText);
         const userTurns = history.filter((entry) => entry.role === "user").length;
-        if (userTurns >= 3) {
+        // Past 6 turns, show it regardless of phrasing - a hard ceiling so a conversation
+        // where the model keeps ending in questions (e.g. "should I proceed?") can't leave
+        // the user with no way to reach the button at all.
+        if ((!stillAskingQuestion && userTurns >= 3) || userTurns >= 6) {
           const existingThesis = await pool.query("select 1 from theses where session_id = $1 limit 1", [session.id]);
           if (existingThesis.rowCount === 0) {
             send({ type: "confirmation", value: {} });

@@ -12,13 +12,14 @@ import {
   MapPin,
   Sparkles,
   Sprout,
-  UserRound
+  UserRound,
+  X
 } from "lucide-react";
 import { register } from "../api/auth";
 import { ApiError } from "../api/client";
 import { Card } from "../components/ui/Card";
 import { ThemeToggle } from "../components/ui/ThemeToggle";
-import { availabilityOptions, fieldOptions, interestOptions, precisionOptions, skillOptions } from "../config/profile";
+import { availabilityOptions, fieldOptions, precisionOptions } from "../config/profile";
 import { useAuth } from "../context/AuthContext";
 import { useNavigation } from "../context/NavigationContext";
 import { usePageTitle } from "../hooks/usePageTitle";
@@ -68,10 +69,6 @@ const steps = [
   { id: "skills", label: "দক্ষতা" }
 ] as const;
 
-function toggleValue<T>(list: T[], value: T): T[] {
-  return list.includes(value) ? list.filter((item) => item !== value) : [...list, value];
-}
-
 function stepErrors(step: number, form: FormState): string[] {
   const errors: string[] = [];
   if (step === 0) {
@@ -101,12 +98,27 @@ export function RegisterPage() {
   const [touched, setTouched] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [skillInput, setSkillInput] = useState("");
+  const [interestInput, setInterestInput] = useState("");
 
   const isLastStep = step === steps.length - 1;
   const currentErrors = stepErrors(step, form);
 
   function update<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((prev) => ({ ...prev, [key]: value }));
+  }
+
+  function addTag(key: "skills" | "interests", rawValue: string) {
+    const value = rawValue.trim();
+    if (!value || form[key].includes(value)) return;
+    update(key, [...form[key], value]);
+  }
+
+  function removeTag(key: "skills" | "interests", value: string) {
+    update(
+      key,
+      form[key].filter((item) => item !== value)
+    );
   }
 
   function goToStep(next: number) {
@@ -392,45 +404,59 @@ export function RegisterPage() {
                     <h2 className="mb-2 flex items-center gap-2 font-semibold">
                       <Sparkles size={16} className="text-primary" /> দক্ষতা
                     </h2>
-                    <div className="flex flex-wrap gap-2">
-                      {skillOptions.map((skill) => {
-                        const active = form.skills.includes(skill);
-                        return (
-                          <motion.button
-                            key={skill}
-                            type="button"
-                            whileTap={{ scale: 0.94 }}
-                            onClick={() => update("skills", toggleValue(form.skills, skill))}
-                            className={`badge badge-lg cursor-pointer transition-colors ${
-                              active ? "badge-primary" : "badge-outline text-base-content/60"
-                            }`}
-                          >
+                    <input
+                      className="input input-bordered w-full"
+                      placeholder="একটি দক্ষতা লিখে Enter চাপুন"
+                      value={skillInput}
+                      onChange={(event) => setSkillInput(event.target.value)}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter" || event.key === ",") {
+                          event.preventDefault();
+                          addTag("skills", skillInput);
+                          setSkillInput("");
+                        }
+                      }}
+                    />
+                    {form.skills.length > 0 && (
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {form.skills.map((skill) => (
+                          <span key={skill} className="badge badge-lg badge-primary gap-1.5">
                             {skill}
-                          </motion.button>
-                        );
-                      })}
-                    </div>
+                            <button type="button" onClick={() => removeTag("skills", skill)} aria-label={`${skill} সরান`}>
+                              <X size={12} />
+                            </button>
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </div>
                   <div>
                     <h2 className="mb-2 font-semibold">আগ্রহ</h2>
-                    <div className="flex flex-wrap gap-2">
-                      {interestOptions.map((interest) => {
-                        const active = form.interests.includes(interest);
-                        return (
-                          <motion.button
-                            key={interest}
-                            type="button"
-                            whileTap={{ scale: 0.94 }}
-                            onClick={() => update("interests", toggleValue(form.interests, interest))}
-                            className={`badge badge-lg cursor-pointer transition-colors ${
-                              active ? "badge-secondary" : "badge-outline text-base-content/60"
-                            }`}
-                          >
+                    <input
+                      className="input input-bordered w-full"
+                      placeholder="একটি আগ্রহের বিষয় লিখে Enter চাপুন"
+                      value={interestInput}
+                      onChange={(event) => setInterestInput(event.target.value)}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter" || event.key === ",") {
+                          event.preventDefault();
+                          addTag("interests", interestInput);
+                          setInterestInput("");
+                        }
+                      }}
+                    />
+                    {form.interests.length > 0 && (
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {form.interests.map((interest) => (
+                          <span key={interest} className="badge badge-lg badge-secondary gap-1.5">
                             {interest}
-                          </motion.button>
-                        );
-                      })}
-                    </div>
+                            <button type="button" onClick={() => removeTag("interests", interest)} aria-label={`${interest} সরান`}>
+                              <X size={12} />
+                            </button>
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
               )}

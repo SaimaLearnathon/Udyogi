@@ -167,6 +167,7 @@ async function syncUserSkills(client: PoolClient, userId: string, skills: string
 
 async function syncUserInterests(client: PoolClient, userId: string, interestsText: string) {
   await client.query("delete from user_interests where user_id = $1", [userId]);
+  await client.query("delete from user_custom_interests where user_id = $1", [userId]);
   const tokens = [...new Set(interestsText.split(",").map((token) => token.trim()).filter(Boolean))];
 
   for (const token of tokens) {
@@ -174,12 +175,17 @@ async function syncUserInterests(client: PoolClient, userId: string, interestsTe
     const interestId = result.rows[0]?.id;
     if (interestId) {
       await client.query("insert into user_interests (user_id, interest_id) values ($1, $2) on conflict do nothing", [userId, interestId]);
+    } else {
+      await client.query(
+        "insert into user_custom_interests (user_id, label, normalized_label) values ($1, $2, $3) on conflict (user_id, normalized_label) do nothing",
+        [userId, token, token.toLowerCase()]
+      );
     }
   }
 }
 
 async function loadUserRelations(db: Queryable, userId: string) {
-  const [skillRows, customSkillRows, interestRows, fieldRows] = await Promise.all([
+  const [skillRows, customSkillRows, interestRows, customInterestRows, fieldRows] = await Promise.all([
     db.query<{ label_bn: string }>(
       "select st.label_bn from user_skills us join skill_taxonomy st on st.id = us.skill_id where us.user_id = $1 order by st.label_bn",
       [userId]
@@ -189,6 +195,7 @@ async function loadUserRelations(db: Queryable, userId: string) {
       "select it.label_bn from user_interests ui join interest_taxonomy it on it.id = ui.interest_id where ui.user_id = $1 order by it.label_bn",
       [userId]
     ),
+    db.query<{ label: string }>("select label from user_custom_interests where user_id = $1 order by label", [userId]),
     db.query<{ label_bn: string }>(
       "select ft.label_bn from user_fields uf join field_taxonomy ft on ft.id = uf.field_id where uf.user_id = $1 limit 1",
       [userId]
@@ -197,7 +204,7 @@ async function loadUserRelations(db: Queryable, userId: string) {
 
   return {
     skills: [...skillRows.rows.map((row) => row.label_bn), ...customSkillRows.rows.map((row) => row.label)],
-    interests: interestRows.rows.map((row) => row.label_bn),
+    interests: [...interestRows.rows.map((row) => row.label_bn), ...customInterestRows.rows.map((row) => row.label)],
     field: fieldRows.rows[0]?.label_bn ?? null
   };
 }
