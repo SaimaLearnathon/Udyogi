@@ -1,4 +1,5 @@
 import { createHash, createHmac, randomBytes } from "node:crypto";
+import type { FastifyReply, FastifyRequest } from "fastify";
 import { env } from "../../config/env.js";
 import type { Queryable } from "../../db/queryable.js";
 
@@ -87,4 +88,22 @@ export async function findUserIdBySessionToken(db: Queryable, token: string) {
 export async function revokeSession(db: Queryable, token: string) {
   const tokenHash = hashSessionToken(token);
   await db.query("update auth_sessions set revoked_at = now() where token_hash = $1 and revoked_at is null", [tokenHash]);
+}
+
+export async function requireUserId(request: FastifyRequest, reply: FastifyReply, db: Queryable): Promise<string | null> {
+  const header = request.headers.authorization;
+  const token = header?.startsWith("Bearer ") ? header.slice("Bearer ".length).trim() : null;
+
+  if (!token) {
+    reply.code(401).send({ message: "অনুমোদন প্রয়োজন" });
+    return null;
+  }
+
+  const userId = await findUserIdBySessionToken(db, token);
+  if (!userId) {
+    reply.code(401).send({ message: "সেশন মেয়াদোত্তীর্ণ বা বাতিল হয়েছে, আবার লগইন করুন" });
+    return null;
+  }
+
+  return userId;
 }

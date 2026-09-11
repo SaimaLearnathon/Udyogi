@@ -3,34 +3,40 @@ import type { PageId } from "../config/navigation";
 
 interface NavigationState {
   page: PageId;
-  goTo: (page: PageId) => void;
+  params: Record<string, string>;
+  goTo: (page: PageId, params?: Record<string, string>) => void;
 }
 
 const defaultPage: PageId = "landing";
 const NavigationContext = createContext<NavigationState | null>(null);
 
-function readPage(): PageId {
-  return (window.location.hash.replace("#", "") || defaultPage) as PageId;
+function readState(): { page: PageId; params: Record<string, string> } {
+  const raw = window.location.hash.replace(/^#/, "");
+  const [pagePart, queryPart] = raw.split("?");
+  const params = Object.fromEntries(new URLSearchParams(queryPart ?? ""));
+  return { page: (pagePart || defaultPage) as PageId, params };
 }
 
 export function NavigationProvider({ children }: { children: React.ReactNode }) {
-  const [page, setPage] = useState<PageId>(readPage);
+  const [state, setState] = useState(readState);
 
   useEffect(() => {
-    const onHashChange = () => setPage(readPage());
+    const onHashChange = () => setState(readState());
     window.addEventListener("hashchange", onHashChange);
     return () => window.removeEventListener("hashchange", onHashChange);
   }, []);
 
-  const value = useMemo(
+  const value = useMemo<NavigationState>(
     () => ({
-      page,
-      goTo(nextPage: PageId) {
-        window.location.hash = nextPage;
-        setPage(nextPage);
+      page: state.page,
+      params: state.params,
+      goTo(nextPage, nextParams) {
+        const query = nextParams && Object.keys(nextParams).length ? `?${new URLSearchParams(nextParams).toString()}` : "";
+        window.location.hash = `${nextPage}${query}`;
+        setState({ page: nextPage, params: nextParams ?? {} });
       }
     }),
-    [page]
+    [state]
   );
 
   return <NavigationContext.Provider value={value}>{children}</NavigationContext.Provider>;

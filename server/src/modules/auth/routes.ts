@@ -1,4 +1,4 @@
-import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
+import type { FastifyInstance } from "fastify";
 import type { PoolClient } from "pg";
 import { pool } from "../../db/pool.js";
 import type { Queryable } from "../../db/queryable.js";
@@ -6,7 +6,7 @@ import { hashPassword, verifyPassword } from "./password.js";
 import {
   createSession,
   emailLookup,
-  findUserIdBySessionToken,
+  requireUserId,
   revokeSession,
   toPublicUser,
   type Availability,
@@ -179,24 +179,6 @@ async function buildPublicUser(db: Queryable, row: UserRow): Promise<PublicUser>
   return toPublicUser(row, related);
 }
 
-async function requireUserId(request: FastifyRequest, reply: FastifyReply): Promise<string | null> {
-  const header = request.headers.authorization;
-  const token = header?.startsWith("Bearer ") ? header.slice("Bearer ".length).trim() : null;
-
-  if (!token) {
-    reply.code(401).send({ message: "অনুমোদন প্রয়োজন" });
-    return null;
-  }
-
-  const userId = await findUserIdBySessionToken(pool, token);
-  if (!userId) {
-    reply.code(401).send({ message: "সেশন মেয়াদোত্তীর্ণ বা বাতিল হয়েছে, আবার লগইন করুন" });
-    return null;
-  }
-
-  return userId;
-}
-
 export async function registerAuthRoutes(app: FastifyInstance) {
   app.post("/auth/register", async (request, reply) => {
     const credentials = validateCredentials(request.body);
@@ -299,7 +281,7 @@ export async function registerAuthRoutes(app: FastifyInstance) {
   });
 
   app.get("/profile", async (request, reply) => {
-    const userId = await requireUserId(request, reply);
+    const userId = await requireUserId(request, reply, pool);
     if (!userId) return;
 
     const row = await findUserById(pool, userId);
@@ -309,7 +291,7 @@ export async function registerAuthRoutes(app: FastifyInstance) {
   });
 
   app.patch("/profile", async (request, reply) => {
-    const userId = await requireUserId(request, reply);
+    const userId = await requireUserId(request, reply, pool);
     if (!userId) return;
 
     const { errors, value } = validateProfileInput(request.body);
