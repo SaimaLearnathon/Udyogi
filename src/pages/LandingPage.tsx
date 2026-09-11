@@ -30,7 +30,11 @@ const demoUser: PublicUser = {
   field: "এগ্রিটেক",
   skills: ["প্রোডাক্ট"],
   interests: [],
-  location: { city: "ঢাকা", region: "ঢাকা", country: "বাংলাদেশ" }
+  location: { city: "ঢাকা", region: "ঢাকা", country: "বাংলাদেশ" },
+  socials: { linkedinUrl: null, facebookUrl: null, portfolioUrl: null },
+  contributionCount: 0,
+  successRate: null,
+  eligibility: ""
 };
 
 export function LandingPage() {

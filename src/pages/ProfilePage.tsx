@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { Briefcase, Compass, Loader2, MapPin, Save, Sparkles, UserRound } from "lucide-react";
+import { Award, Briefcase, Compass, GraduationCap, Loader2, MapPin, Save, Sparkles, UserRound } from "lucide-react";
 import { updateProfile } from "../api/profile";
 import { ApiError } from "../api/client";
 import { availabilityOptions, fieldOptions, interestOptions, precisionOptions, skillOptions } from "../config/profile";
@@ -51,12 +51,39 @@ export function ProfilePage() {
   const [isSeeker, setIsSeeker] = useState(user?.isSeeker ?? true);
   const [field, setField] = useState(user?.field ?? "");
   const [availability, setAvailability] = useState<Availability>(user?.availability ?? "full_time");
-  const [city, setCity] = useState(user?.location.city ?? "");
-  const [region, setRegion] = useState(user?.location.region ?? "");
-  const [country, setCountry] = useState(user?.location.country ?? "বাংলাদেশ");
+  const [city, setCity] = useState(user?.location?.city ?? "");
+  const [region, setRegion] = useState(user?.location?.region ?? "");
+  const [country, setCountry] = useState(user?.location?.country ?? "বাংলাদেশ");
   const [precision, setPrecision] = useState<LocationPrecision>("city");
   const [selectedSkills, setSelectedSkills] = useState<string[]>(user?.skills ?? []);
   const [selectedInterests, setSelectedInterests] = useState<string[]>(user?.interests ?? []);
+  const [linkedinUrl, setLinkedinUrl] = useState(user?.socials?.linkedinUrl ?? "");
+  const [facebookUrl, setFacebookUrl] = useState(user?.socials?.facebookUrl ?? "");
+  const [portfolioUrl, setPortfolioUrl] = useState(user?.socials?.portfolioUrl ?? "");
+  const [contributionCount, setContributionCount] = useState(user?.contributionCount ?? 0);
+  const [successRate, setSuccessRate] = useState<number | "">(user?.successRate ?? "");
+  const [eligibility, setEligibility] = useState(user?.eligibility ?? "");
+
+  useEffect(() => {
+    if (!user) return;
+    setPublicName(user.publicName);
+    setPublicBio(user.publicBio);
+    setIsFounder(user.isFounder);
+    setIsSeeker(user.isSeeker);
+    setField(user.field ?? "");
+    setAvailability(user.availability);
+    setCity(user.location?.city ?? "");
+    setRegion(user.location?.region ?? "");
+    setCountry(user.location?.country ?? "বাংলাদেশ");
+    setSelectedSkills(user.skills ?? []);
+    setSelectedInterests(user.interests ?? []);
+    setLinkedinUrl(user.socials?.linkedinUrl ?? "");
+    setFacebookUrl(user.socials?.facebookUrl ?? "");
+    setPortfolioUrl(user.socials?.portfolioUrl ?? "");
+    setContributionCount(user.contributionCount ?? 0);
+    setSuccessRate(user.successRate ?? "");
+    setEligibility(user.eligibility ?? "");
+  }, [user]);
 
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -83,7 +110,13 @@ export function ProfilePage() {
         field,
         precision,
         skills: selectedSkills,
-        interests: selectedInterests.join(", ")
+        interests: selectedInterests.join(", "),
+        linkedinUrl: linkedinUrl.trim() || null,
+        facebookUrl: facebookUrl.trim() || null,
+        portfolioUrl: portfolioUrl.trim() || null,
+        contributionCount,
+        successRate: successRate === "" ? null : successRate,
+        eligibility: eligibility.trim()
       });
       setSession(token, updated);
       setSaved(true);
@@ -261,6 +294,67 @@ export function ProfilePage() {
                 );
               })}
             </div>
+          </div>
+        </SectionCard>
+
+        <SectionCard icon={Award} title="অতিরিক্ত তথ্য" description="সোশ্যাল লিংক, অভিজ্ঞতা ও ট্র্যাক রেকর্ড (ঐচ্ছিক)">
+          <div className="space-y-3">
+            <input
+              className="input input-bordered w-full"
+              placeholder="LinkedIn লিংক"
+              value={linkedinUrl}
+              onChange={(event) => setLinkedinUrl(event.target.value)}
+            />
+            <input
+              className="input input-bordered w-full"
+              placeholder="Facebook লিংক"
+              value={facebookUrl}
+              onChange={(event) => setFacebookUrl(event.target.value)}
+            />
+            <input
+              className="input input-bordered w-full"
+              placeholder="পোর্টফোলিও / ওয়েবসাইট লিংক"
+              value={portfolioUrl}
+              onChange={(event) => setPortfolioUrl(event.target.value)}
+            />
+            <div className="grid grid-cols-2 gap-3">
+              <label className="form-control">
+                <span className="mb-1 text-xs text-base-content/55">অবদানের সংখ্যা</span>
+                <input
+                  type="number"
+                  min={0}
+                  className="input input-bordered w-full"
+                  value={contributionCount}
+                  onChange={(event) => setContributionCount(Math.max(0, Number(event.target.value) || 0))}
+                />
+              </label>
+              <label className="form-control">
+                <span className="mb-1 text-xs text-base-content/55">সাফল্যের হার (%)</span>
+                <input
+                  type="number"
+                  min={0}
+                  max={100}
+                  className="input input-bordered w-full"
+                  placeholder="—"
+                  value={successRate}
+                  onChange={(event) => {
+                    const raw = event.target.value;
+                    setSuccessRate(raw === "" ? "" : Math.min(100, Math.max(0, Number(raw))));
+                  }}
+                />
+              </label>
+            </div>
+            <label className="form-control">
+              <span className="mb-1 flex items-center gap-1 text-xs text-base-content/55">
+                <GraduationCap size={12} /> যোগ্যতা / অভিজ্ঞতা
+              </span>
+              <input
+                className="input input-bordered w-full"
+                placeholder="যেমন: কম্পিউটার সায়েন্স স্নাতক, ৩ বছরের অভিজ্ঞতা"
+                value={eligibility}
+                onChange={(event) => setEligibility(event.target.value)}
+              />
+            </label>
           </div>
         </SectionCard>
       </div>

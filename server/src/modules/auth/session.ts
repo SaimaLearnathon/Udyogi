@@ -18,6 +18,12 @@ export interface UserRow {
   location_city: string | null;
   location_region: string | null;
   location_country: string | null;
+  linkedin_url: string | null;
+  facebook_url: string | null;
+  portfolio_url: string | null;
+  contribution_count: number;
+  success_rate: number | null;
+  eligibility: string;
 }
 
 export interface PublicUser {
@@ -35,6 +41,14 @@ export interface PublicUser {
     region: string | null;
     country: string | null;
   };
+  socials: {
+    linkedinUrl: string | null;
+    facebookUrl: string | null;
+    portfolioUrl: string | null;
+  };
+  contributionCount: number;
+  successRate: number | null;
+  eligibility: string;
 }
 
 export function emailLookup(email: string) {
@@ -64,7 +78,15 @@ export function toPublicUser(row: UserRow, related: { field: string | null; skil
       city: row.location_city,
       region: row.location_region,
       country: row.location_country
-    }
+    },
+    socials: {
+      linkedinUrl: row.linkedin_url,
+      facebookUrl: row.facebook_url,
+      portfolioUrl: row.portfolio_url
+    },
+    contributionCount: row.contribution_count,
+    successRate: row.success_rate,
+    eligibility: row.eligibility
   };
 }
 

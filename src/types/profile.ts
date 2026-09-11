@@ -7,6 +7,12 @@ export interface PublicLocation {
   country: string | null;
 }
 
+export interface PublicSocials {
+  linkedinUrl: string | null;
+  facebookUrl: string | null;
+  portfolioUrl: string | null;
+}
+
 export interface PublicUser {
   id: string;
   publicName: string;
@@ -18,6 +24,10 @@ export interface PublicUser {
   skills: string[];
   interests: string[];
   location: PublicLocation;
+  socials: PublicSocials;
+  contributionCount: number;
+  successRate: number | null;
+  eligibility: string;
 }
 
 export interface ProfilePayload {
@@ -37,4 +47,10 @@ export interface ProfilePayload {
   precision: LocationPrecision;
   skills: string[];
   interests: string;
+  linkedinUrl?: string | null;
+  facebookUrl?: string | null;
+  portfolioUrl?: string | null;
+  contributionCount?: number;
+  successRate?: number | null;
+  eligibility?: string;
 }

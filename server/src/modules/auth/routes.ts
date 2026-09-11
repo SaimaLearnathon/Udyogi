@@ -2,6 +2,7 @@ import type { FastifyInstance } from "fastify";
 import type { PoolClient } from "pg";
 import { pool } from "../../db/pool.js";
 import type { Queryable } from "../../db/queryable.js";
+import { normalizeBengaliText } from "../../utils/text.js";
 import { hashPassword, verifyPassword } from "./password.js";
 import {
   createSession,
@@ -30,6 +31,12 @@ interface ProfileInput {
   precision: LocationPrecision;
   skills: string[];
   interests: string;
+  linkedinUrl: string | null;
+  facebookUrl: string | null;
+  portfolioUrl: string | null;
+  contributionCount: number;
+  successRate: number | null;
+  eligibility: string;
 }
 
 function validateProfileInput(body: unknown): { errors: string[]; value: ProfileInput | null } {
@@ -55,28 +62,63 @@ function validateProfileInput(body: unknown): { errors: string[]; value: Profile
     if (typeof location.country !== "string") errors.push("দেশ সঠিক নয়");
   }
 
+  const optionalUrlFields = ["linkedinUrl", "facebookUrl", "portfolioUrl"] as const;
+  for (const key of optionalUrlFields) {
+    if (b[key] !== undefined && b[key] !== null && typeof b[key] !== "string") {
+      errors.push("সঠিক লিংক দিন");
+    }
+  }
+  if (b.contributionCount !== undefined && (typeof b.contributionCount !== "number" || b.contributionCount < 0)) {
+    errors.push("অবদানের সংখ্যা সঠিক নয়");
+  }
+  if (
+    b.successRate !== undefined &&
+    b.successRate !== null &&
+    (typeof b.successRate !== "number" || b.successRate < 0 || b.successRate > 100)
+  ) {
+    errors.push("সাফল্যের হার ০-১০০ এর মধ্যে হতে হবে");
+  }
+  if (b.eligibility !== undefined && typeof b.eligibility !== "string") {
+    errors.push("যোগ্যতার তথ্য সঠিক নয়");
+  }
+
   if (errors.length) return { errors, value: null };
 
   const loc = location as Record<string, string>;
+  const toOptionalUrl = (raw: unknown) => {
+    const text = typeof raw === "string" ? raw.trim() : "";
+    return text ? text : null;
+  };
+
   return {
     errors: [],
     value: {
-      publicName: (b.publicName as string).trim(),
-      publicBio: (b.publicBio as string).trim(),
+      publicName: normalizeText(b.publicName as string),
+      publicBio: normalizeText(b.publicBio as string),
       isFounder: b.isFounder as boolean,
       isSeeker: b.isSeeker as boolean,
       availability: b.availability as Availability,
       location: {
-        city: loc.city.trim(),
-        region: loc.region.trim(),
-        country: loc.country.trim()
+        city: normalizeText(loc.city),
+        region: normalizeText(loc.region),
+        country: normalizeText(loc.country)
       },
-      field: (b.field as string).trim(),
+      field: normalizeText(b.field as string),
       precision: b.precision as LocationPrecision,
-      skills: (b.skills as string[]).map((skill) => skill.trim()).filter(Boolean),
-      interests: (b.interests as string).trim()
+      skills: (b.skills as string[]).map(normalizeText).filter(Boolean),
+      interests: normalizeText(b.interests as string),
+      linkedinUrl: toOptionalUrl(b.linkedinUrl),
+      facebookUrl: toOptionalUrl(b.facebookUrl),
+      portfolioUrl: toOptionalUrl(b.portfolioUrl),
+      contributionCount: typeof b.contributionCount === "number" ? Math.round(b.contributionCount) : 0,
+      successRate: typeof b.successRate === "number" ? Math.round(b.successRate) : null,
+      eligibility: normalizeText(typeof b.eligibility === "string" ? b.eligibility : "")
     }
   };
+}
+
+function normalizeText(text: string): string {
+  return normalizeBengaliText(text);
 }
 
 function validateCredentials(body: unknown): { errors: string[]; email: string; password: string } {
@@ -159,7 +201,8 @@ async function loadUserRelations(db: Queryable, userId: string) {
   };
 }
 
-const userColumns = `id, public_name, public_bio, is_founder, is_seeker, availability, location_city, location_region, location_country`;
+const userColumns = `id, public_name, public_bio, is_founder, is_seeker, availability, location_city, location_region, location_country,
+  linkedin_url, facebook_url, portfolio_url, contribution_count, success_rate, eligibility`;
 
 async function findUserById(db: Queryable, userId: string) {
   const result = await db.query<UserRow>(`select ${userColumns} from users where id = $1`, [userId]);
@@ -205,8 +248,9 @@ export async function registerAuthRoutes(app: FastifyInstance) {
         `insert into users (
            email_lookup, email_ciphertext, password_hash, public_name, public_bio,
            is_founder, is_seeker, availability,
-           location_city, location_region, location_country, location_precision, location_consent_at
-         ) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+           location_city, location_region, location_country, location_precision, location_consent_at,
+           linkedin_url, facebook_url, portfolio_url, contribution_count, success_rate, eligibility
+         ) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
          returning id`,
         [
           emailLookup(credentials.email),
@@ -221,7 +265,13 @@ export async function registerAuthRoutes(app: FastifyInstance) {
           value.location.region || null,
           value.location.country || null,
           value.precision,
-          hasLocation ? new Date() : null
+          hasLocation ? new Date() : null,
+          value.linkedinUrl,
+          value.facebookUrl,
+          value.portfolioUrl,
+          value.contributionCount,
+          value.successRate,
+          value.eligibility
         ]
       );
       const userId = inserted.rows[0].id;
@@ -309,8 +359,11 @@ export async function registerAuthRoutes(app: FastifyInstance) {
         `update users set
            public_name = $1, public_bio = $2, is_founder = $3, is_seeker = $4, availability = $5,
            location_city = $6, location_region = $7, location_country = $8, location_precision = $9,
-           location_consent_at = $10, updated_at = now()
-         where id = $11
+           location_consent_at = $10,
+           linkedin_url = $11, facebook_url = $12, portfolio_url = $13,
+           contribution_count = $14, success_rate = $15, eligibility = $16,
+           updated_at = now()
+         where id = $17
          returning ${userColumns}`,
         [
           value.publicName,
@@ -323,6 +376,12 @@ export async function registerAuthRoutes(app: FastifyInstance) {
           value.location.country || null,
           value.precision,
           hasLocation ? new Date() : null,
+          value.linkedinUrl,
+          value.facebookUrl,
+          value.portfolioUrl,
+          value.contributionCount,
+          value.successRate,
+          value.eligibility,
           userId
         ]
       );

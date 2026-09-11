@@ -2,6 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { ApiError, type Content, type GenerateContentParameters } from "@google/genai";
 import { pool } from "../../db/pool.js";
 import { env } from "../../config/env.js";
+import { normalizeDeep } from "../../utils/text.js";
 import { requireUserId } from "../auth/session.js";
 import {
   PROPOSE_THESIS_FUNCTION,
@@ -270,7 +271,7 @@ export async function registerConsultantRoutes(app: FastifyInstance) {
 
     try {
       let assistantText = "";
-      let capturedCall: { id?: string; name: string; args: Record<string, unknown> } | null = null;
+      let capturedCall: { id?: string; name: string; args: Record<string, unknown>; thoughtSignature?: string } | null = null;
       let usage: { promptTokenCount?: number; candidatesTokenCount?: number } = {};
 
       const stream = await generateContentStreamWithRetry(client, { model: env.GEMINI_MODEL, contents: history, config });
@@ -280,9 +281,15 @@ export async function registerConsultantRoutes(app: FastifyInstance) {
           assistantText += chunk.text;
           send({ type: "text", value: chunk.text });
         }
-        const calls = chunk.functionCalls;
-        if (calls?.length && calls[0].name) {
-          capturedCall = { id: calls[0].id, name: calls[0].name, args: calls[0].args ?? {} };
+        for (const part of chunk.candidates?.[0]?.content?.parts ?? []) {
+          if (part.functionCall?.name) {
+            capturedCall = {
+              id: part.functionCall.id,
+              name: part.functionCall.name,
+              args: part.functionCall.args ?? {},
+              thoughtSignature: part.thoughtSignature
+            };
+          }
         }
         if (chunk.usageMetadata) usage = chunk.usageMetadata;
       }
@@ -298,19 +305,29 @@ export async function registerConsultantRoutes(app: FastifyInstance) {
         );
         const version = versionResult.rows[0].next;
 
+        const normalizedArgs = normalizeDeep(capturedCall.args);
+
         const inserted = await pool.query<{ id: string }>(
           `insert into theses (session_id, user_id, version, status, parsed_data, raw_model_output)
            values ($1, $2, $3, 'draft', $4, $5)
            returning id`,
-          [session.id, userId, version, JSON.stringify(capturedCall.args), JSON.stringify(capturedCall.args)]
+          [session.id, userId, version, JSON.stringify(normalizedArgs), JSON.stringify(capturedCall.args)]
         );
 
         const thesisId = inserted.rows[0].id;
-        send({ type: "thesis", value: { id: thesisId, version, status: "draft", parsedData: capturedCall.args } });
+        send({ type: "thesis", value: { id: thesisId, version, status: "draft", parsedData: normalizedArgs } });
 
         const followUpContents: Content[] = [
           ...history,
-          { role: "model", parts: [{ functionCall: { id: capturedCall.id, name: capturedCall.name, args: capturedCall.args } }] },
+          {
+            role: "model",
+            parts: [
+              {
+                functionCall: { id: capturedCall.id, name: capturedCall.name, args: capturedCall.args },
+                thoughtSignature: capturedCall.thoughtSignature
+              }
+            ]
+          },
           {
             role: "user",
             parts: [

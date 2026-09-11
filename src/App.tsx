@@ -3,6 +3,7 @@ import { AuthProvider } from "./context/AuthContext";
 import { DemoProvider } from "./context/DemoContext";
 import { NavigationProvider, useNavigation } from "./context/NavigationContext";
 import { ThemeProvider } from "./context/ThemeContext";
+import { CandidateProfilePage } from "./pages/CandidateProfilePage";
 import { ConsultantPage } from "./pages/ConsultantPage";
 import { LandingPage } from "./pages/LandingPage";
 import { LoginPage } from "./pages/LoginPage";
@@ -26,6 +27,7 @@ function CurrentPage() {
     workspace: <WorkspacePage />,
     thesis: <ThesisPage />,
     matching: <MatchingPage />,
+    candidate: <CandidateProfilePage />,
     messages: <MessagesPage />,
     profile: <ProfilePage />
   };

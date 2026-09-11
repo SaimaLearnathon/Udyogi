@@ -1,4 +1,5 @@
-import { createContext, useContext, useMemo, useState } from "react";
+import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { getProfile } from "../api/profile";
 import type { PublicUser } from "../types/profile";
 
 interface AuthState {
@@ -16,6 +17,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const raw = localStorage.getItem("uddogi_user");
     return raw ? (JSON.parse(raw) as PublicUser) : null;
   });
+
+  // A stored user may be stale (cached from an earlier login, before the profile
+  // shape changed on the server) or the session itself may have expired. Always
+  // refresh from the server on load rather than trusting localStorage indefinitely.
+  useEffect(() => {
+    if (!token) return;
+    let cancelled = false;
+
+    getProfile(token)
+      .then((freshUser) => {
+        if (cancelled) return;
+        localStorage.setItem("uddogi_user", JSON.stringify(freshUser));
+        setUser(freshUser);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        localStorage.removeItem("uddogi_token");
+        localStorage.removeItem("uddogi_user");
+        setToken(null);
+        setUser(null);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token]);
 
   const value = useMemo<AuthState>(
     () => ({
