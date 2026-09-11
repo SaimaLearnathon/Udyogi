@@ -66,7 +66,7 @@ export function LandingPage() {
               whileHover={{ y: -1 }}
               whileTap={{ scale: 0.97 }}
               type="button"
-              onClick={() => goTo("login")}
+              onClick={() => goTo("register")}
               className="btn btn-primary gap-2"
             >
               ফ্রি শুরু করুন

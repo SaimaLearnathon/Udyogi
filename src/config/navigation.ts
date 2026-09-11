@@ -41,4 +41,4 @@ export const navGroups: NavGroup[] = [
 
 export const pages: NavItem[] = navGroups.flatMap((group) => group.items);
 
-export type PageId = AppPageId | "landing" | "login";
+export type PageId = AppPageId | "landing" | "login" | "register";

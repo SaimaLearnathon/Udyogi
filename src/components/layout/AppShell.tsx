@@ -6,7 +6,7 @@ import { ThemeToggle } from "../ui/ThemeToggle";
 import { useNavigation } from "../../context/NavigationContext";
 import { pageVariants } from "../../config/motion";
 
-const publicPages = new Set(["landing", "login"]);
+const publicPages = new Set(["landing", "login", "register"]);
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const { page } = useNavigation();

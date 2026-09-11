@@ -1,17 +1,13 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { ArrowLeft, CheckCircle2, Eye, EyeOff, Lock, Mail, Sprout } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Eye, EyeOff, Loader2, Lock, Mail, Sprout } from "lucide-react";
+import { login } from "../api/auth";
+import { ApiError } from "../api/client";
 import { Card } from "../components/ui/Card";
 import { ThemeToggle } from "../components/ui/ThemeToggle";
 import { useAuth } from "../context/AuthContext";
 import { useNavigation } from "../context/NavigationContext";
 import { usePageTitle } from "../hooks/usePageTitle";
-import type { PublicUser } from "../types/profile";
-
-const tabs = [
-  { id: "login", label: "লগইন" },
-  { id: "register", label: "রেজিস্ট্রেশন" }
-] as const;
 
 const highlights = [
   "AI কনসালট্যান্টের সাথে ধারণা যাচাই করুন",
@@ -20,30 +16,30 @@ const highlights = [
   "কাছাকাছি উদ্যোক্তা ও ফান্ডিং সহায়তা খুঁজে নিন"
 ];
 
-const demoUser: PublicUser = {
-  id: "demo-user",
-  publicName: "অতিথি প্রতিষ্ঠাতা",
-  publicBio: "",
-  isFounder: true,
-  isSeeker: true,
-  availability: "part_time",
-  field: "এগ্রিটেক",
-  skills: ["প্রোডাক্ট"],
-  interests: [],
-  location: { city: "ঢাকা", region: "ঢাকা", country: "বাংলাদেশ" }
-};
-
 export function LoginPage() {
   usePageTitle("লগইন");
-  const [tab, setTab] = useState<(typeof tabs)[number]["id"]>("login");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
   const { setSession } = useAuth();
   const { goTo } = useNavigation();
 
-  function handleSubmit(event: React.FormEvent) {
+  async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
-    setSession("demo-session-token", demoUser);
-    goTo("onboarding");
+    setSubmitting(true);
+    setError(null);
+
+    try {
+      const { token, user } = await login(email, password);
+      setSession(token, user);
+      goTo("onboarding");
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "লগইন সম্পন্ন করা যায়নি, আবার চেষ্টা করুন");
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return (
@@ -82,52 +78,53 @@ export function LoginPage() {
           </div>
 
           <div className="p-6 sm:p-8">
-            <div className="relative mb-6 grid grid-cols-2 rounded-field bg-base-200 p-1">
-              {tabs.map((item) => (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => setTab(item.id)}
-                  className={`relative z-10 rounded-field py-2 text-sm font-semibold transition-colors ${
-                    tab === item.id ? "text-primary-content" : "text-base-content/60"
-                  }`}
-                >
-                  {tab === item.id && (
-                    <motion.span
-                      layoutId="auth-tab"
-                      className="absolute inset-0 -z-10 rounded-field bg-primary"
-                      transition={{ type: "spring", stiffness: 420, damping: 34 }}
-                    />
-                  )}
-                  {item.label}
-                </button>
-              ))}
-            </div>
+            <h1 className="mb-1 text-xl font-bold">লগইন করুন</h1>
+            <p className="mb-6 text-sm text-base-content/55">আপনার অ্যাকাউন্টে ফিরে যান</p>
+
+            {error && (
+              <motion.div initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} className="alert alert-error mb-4 text-sm">
+                {error}
+              </motion.div>
+            )}
 
             <form className="space-y-4" onSubmit={handleSubmit}>
-              {tab === "register" && (
-                <label className="input input-bordered flex w-full items-center gap-2">
-                  <Sprout size={16} className="text-base-content/40" />
-                  <input type="text" className="grow" placeholder="পাবলিক নাম" />
-                </label>
-              )}
               <label className="input input-bordered flex w-full items-center gap-2">
                 <Mail size={16} className="text-base-content/40" />
-                <input type="email" className="grow" placeholder="ইমেইল" />
+                <input type="email" className="grow" placeholder="ইমেইল" value={email} onChange={(event) => setEmail(event.target.value)} required />
               </label>
               <label className="input input-bordered flex w-full items-center gap-2">
                 <Lock size={16} className="text-base-content/40" />
-                <input type={showPassword ? "text" : "password"} className="grow" placeholder="পাসওয়ার্ড" />
+                <input
+                  type={showPassword ? "text" : "password"}
+                  className="grow"
+                  placeholder="পাসওয়ার্ড"
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                  required
+                />
                 <button type="button" onClick={() => setShowPassword((prev) => !prev)} className="text-base-content/40 hover:text-base-content">
                   {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
               </label>
 
-              <motion.button whileHover={{ y: -1 }} whileTap={{ scale: 0.98 }} type="submit" className="btn btn-primary w-full">
-                {tab === "login" ? "লগইন করুন" : "অ্যাকাউন্ট তৈরি করুন"}
+              <motion.button
+                whileHover={{ y: -1 }}
+                whileTap={{ scale: 0.98 }}
+                type="submit"
+                disabled={submitting}
+                className="btn btn-primary w-full gap-2"
+              >
+                {submitting && <Loader2 size={16} className="animate-spin" />}
+                লগইন করুন
               </motion.button>
-              <p className="text-center text-xs text-base-content/45">ডেমো টেমপ্লেট — যেকোনো তথ্য দিয়ে চালিয়ে যান</p>
             </form>
+
+            <p className="mt-5 text-center text-sm text-base-content/55">
+              নতুন এখানে?{" "}
+              <button type="button" onClick={() => goTo("register")} className="font-semibold text-primary hover:underline">
+                অ্যাকাউন্ট তৈরি করুন
+              </button>
+            </p>
           </div>
         </Card>
       </div>

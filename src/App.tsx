@@ -10,6 +10,7 @@ import { MatchingPage } from "./pages/MatchingPage";
 import { MessagesPage } from "./pages/MessagesPage";
 import { OnboardingPage } from "./pages/OnboardingPage";
 import { ProfilePage } from "./pages/ProfilePage";
+import { RegisterPage } from "./pages/RegisterPage";
 import { ThesisPage } from "./pages/ThesisPage";
 import { WorkspacePage } from "./pages/WorkspacePage";
 
@@ -20,6 +21,7 @@ function CurrentPage() {
     landing: <LandingPage />,
     onboarding: <OnboardingPage />,
     login: <LoginPage />,
+    register: <RegisterPage />,
     consultant: <ConsultantPage />,
     workspace: <WorkspacePage />,
     thesis: <ThesisPage />,

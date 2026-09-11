@@ -41,7 +41,7 @@ export function LandingNav() {
             whileHover={{ y: -1 }}
             whileTap={{ scale: 0.96 }}
             type="button"
-            onClick={() => goTo("login")}
+            onClick={() => goTo("register")}
             className="btn btn-primary btn-sm"
           >
             শুরু করুন
@@ -76,7 +76,7 @@ export function LandingNav() {
                 <button type="button" onClick={() => goTo("login")} className="btn btn-ghost btn-sm flex-1">
                   লগইন
                 </button>
-                <button type="button" onClick={() => goTo("login")} className="btn btn-primary btn-sm flex-1">
+                <button type="button" onClick={() => goTo("register")} className="btn btn-primary btn-sm flex-1">
                   শুরু করুন
                 </button>
                 <ThemeToggle />
