@@ -1,12 +1,15 @@
 import type { FastifyInstance } from "fastify";
-import { ApiError, type Content, type GenerateContentParameters } from "@google/genai";
+import { ApiError, ThinkingLevel, type Content, type GenerateContentParameters } from "@google/genai";
 import { pool } from "../../db/pool.js";
 import { env } from "../../config/env.js";
 import { normalizeDeep } from "../../utils/text.js";
 import { requireUserId } from "../auth/session.js";
 import {
+  CONFIRM_THESIS_FUNCTION,
   PROPOSE_THESIS_FUNCTION,
   REQUEST_CONFIRMATION_FUNCTION,
+  STATUS_LINE_PREFIX,
+  confirmThesisFunctionDeclaration,
   getGeminiClient,
   requestConfirmationFunctionDeclaration,
   systemInstructionFor,
@@ -86,7 +89,30 @@ function isValidThesisPayload(data: unknown): data is Record<string, unknown> {
   return REQUIRED_THESIS_KEYS.every((key) => key in record);
 }
 
-const RETRYABLE_STATUS = new Set([429, 503]);
+interface GeminiErrorDetails {
+  status?: string;
+  quotaId?: string;
+  retryDelaySeconds?: number;
+}
+
+function parseGeminiErrorDetails(error: ApiError): GeminiErrorDetails {
+  try {
+    const parsed = JSON.parse(error.message) as {
+      error?: { status?: string; details?: Array<Record<string, unknown>> };
+    };
+    const details = parsed.error?.details ?? [];
+    const quotaFailure = details.find((d) => typeof d["@type"] === "string" && (d["@type"] as string).includes("QuotaFailure"));
+    const retryInfo = details.find((d) => typeof d["@type"] === "string" && (d["@type"] as string).includes("RetryInfo"));
+    const quotaId = (quotaFailure?.violations as Array<{ quotaId?: string }> | undefined)?.[0]?.quotaId;
+    const retryDelayRaw = retryInfo?.retryDelay as string | undefined;
+    const retryDelaySeconds = retryDelayRaw ? Number.parseFloat(retryDelayRaw) : undefined;
+    return { status: parsed.error?.status, quotaId, retryDelaySeconds };
+  } catch {
+    return {};
+  }
+}
+
+const MAX_INLINE_RETRY_DELAY_SECONDS = 5;
 
 async function generateContentStreamWithRetry(
   client: ReturnType<typeof getGeminiClient>,
@@ -97,16 +123,109 @@ async function generateContentStreamWithRetry(
     try {
       return await client.models.generateContentStream(params);
     } catch (error) {
-      const retryable = error instanceof ApiError && RETRYABLE_STATUS.has(error.status);
-      if (!retryable || attempt === attempts) throw error;
-      await new Promise((resolve) => setTimeout(resolve, 600 * 2 ** (attempt - 1)));
+      if (!(error instanceof ApiError) || attempt === attempts) throw error;
+
+      if (error.status === 503) {
+        await new Promise((resolve) => setTimeout(resolve, 600 * 2 ** (attempt - 1)));
+        continue;
+      }
+
+      if (error.status === 429) {
+        const details = parseGeminiErrorDetails(error);
+        const isDailyQuota = details.quotaId?.toLowerCase().includes("perday");
+        if (isDailyQuota) throw error; // won't recover within this request, no point retrying
+
+        const delaySeconds = details.retryDelaySeconds;
+        if (delaySeconds !== undefined && delaySeconds <= MAX_INLINE_RETRY_DELAY_SECONDS) {
+          await new Promise((resolve) => setTimeout(resolve, delaySeconds * 1000));
+          continue;
+        }
+        throw error; // suggested wait too long to hold the connection open for
+      }
+
+      throw error;
     }
   }
   throw new Error("unreachable");
 }
 
+interface CapturedCall {
+  id?: string;
+  name: string;
+  args: Record<string, unknown>;
+  thoughtSignature?: string;
+}
+
+interface StreamState {
+  assistantText: string;
+  buffer: string;
+  capturedCall: CapturedCall | null;
+  usage: { promptTokenCount?: number; candidatesTokenCount?: number };
+}
+
+function emitStreamLine(line: string, send: (event: Record<string, unknown>) => void, state: StreamState) {
+  const trimmed = line.trimStart();
+  if (trimmed.startsWith(STATUS_LINE_PREFIX)) {
+    const statusText = trimmed.slice(STATUS_LINE_PREFIX.length).trim();
+    if (statusText) send({ type: "status", value: statusText });
+    return;
+  }
+  state.assistantText += line;
+  send({ type: "text", value: line });
+}
+
+function flushStreamBuffer(send: (event: Record<string, unknown>) => void, state: StreamState) {
+  if (state.buffer) {
+    emitStreamLine(state.buffer, send, state);
+    state.buffer = "";
+  }
+}
+
+async function pumpStream(
+  stream: AsyncIterable<{
+    text?: string;
+    candidates?: Array<{ content?: { parts?: Array<{ functionCall?: { id?: string; name?: string; args?: Record<string, unknown> }; thoughtSignature?: string }> } }>;
+    usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number };
+  }>,
+  send: (event: Record<string, unknown>) => void,
+  state: StreamState
+) {
+  for await (const chunk of stream) {
+    if (chunk.text) {
+      state.buffer += chunk.text;
+      let newlineIndex: number;
+      while ((newlineIndex = state.buffer.indexOf("\n")) !== -1) {
+        const line = state.buffer.slice(0, newlineIndex + 1);
+        state.buffer = state.buffer.slice(newlineIndex + 1);
+        emitStreamLine(line, send, state);
+      }
+    }
+    for (const part of chunk.candidates?.[0]?.content?.parts ?? []) {
+      if (part.functionCall?.name) {
+        state.capturedCall = {
+          id: part.functionCall.id,
+          name: part.functionCall.name,
+          args: part.functionCall.args ?? {},
+          thoughtSignature: part.thoughtSignature
+        };
+      }
+    }
+    if (chunk.usageMetadata) state.usage = chunk.usageMetadata;
+  }
+}
+
 function describeGeminiError(error: unknown): string {
-  if (error instanceof ApiError && RETRYABLE_STATUS.has(error.status)) {
+  if (error instanceof ApiError && error.status === 429) {
+    const details = parseGeminiErrorDetails(error);
+    if (details.quotaId?.toLowerCase().includes("perday")) {
+      return "AI সেবার আজকের ব্যবহারের সীমা (কোটা) শেষ হয়ে গেছে। কিছুক্ষণ পর অথবা পরের দিন আবার চেষ্টা করুন, অথবা আপনার Gemini API অ্যাকাউন্টে বিলিং চালু করে সীমা বাড়ান।";
+    }
+    const wait = details.retryDelaySeconds ? Math.ceil(details.retryDelaySeconds) : null;
+    return wait
+      ? `AI সেবাটি এই মুহূর্তে ব্যস্ত, প্রায় ${wait} সেকেন্ড পর আবার চেষ্টা করুন।`
+      : "AI সেবাটি এই মুহূর্তে ব্যস্ত, কিছুক্ষণ পর আবার চেষ্টা করুন";
+  }
+  if (error instanceof ApiError && error.status === 503) {
     return "AI সেবাটি এই মুহূর্তে ব্যস্ত, কিছুক্ষণ পর আবার চেষ্টা করুন";
   }
   return "AI থেকে উত্তর পাওয়া যায়নি, আবার চেষ্টা করুন";
@@ -266,36 +385,40 @@ export async function registerConsultantRoutes(app: FastifyInstance) {
 
     const config = {
       systemInstruction: systemInstructionFor(session.mode),
-      tools: [{ functionDeclarations: [thesisFunctionDeclaration, requestConfirmationFunctionDeclaration] }]
+      tools: [
+        { functionDeclarations: [thesisFunctionDeclaration, requestConfirmationFunctionDeclaration, confirmThesisFunctionDeclaration] }
+      ],
+      // low thinking keeps replies fast; the schema is explicit enough that heavy reasoning isn't needed
+      thinkingConfig: { thinkingLevel: ThinkingLevel.LOW }
     };
 
     try {
-      let assistantText = "";
-      let capturedCall: { id?: string; name: string; args: Record<string, unknown>; thoughtSignature?: string } | null = null;
-      let usage: { promptTokenCount?: number; candidatesTokenCount?: number } = {};
+      const state: StreamState = { assistantText: "", buffer: "", capturedCall: null, usage: {} };
 
       const stream = await generateContentStreamWithRetry(client, { model: env.GEMINI_MODEL, contents: history, config });
+      await pumpStream(stream, send, state);
+      flushStreamBuffer(send, state);
 
-      for await (const chunk of stream) {
-        if (chunk.text) {
-          assistantText += chunk.text;
-          send({ type: "text", value: chunk.text });
-        }
-        for (const part of chunk.candidates?.[0]?.content?.parts ?? []) {
-          if (part.functionCall?.name) {
-            capturedCall = {
-              id: part.functionCall.id,
-              name: part.functionCall.name,
-              args: part.functionCall.args ?? {},
-              thoughtSignature: part.thoughtSignature
-            };
-          }
-        }
-        if (chunk.usageMetadata) usage = chunk.usageMetadata;
-      }
+      const capturedCall = state.capturedCall;
+      let assistantText = state.assistantText;
+      const usage = state.usage;
 
       if (capturedCall && capturedCall.name === REQUEST_CONFIRMATION_FUNCTION) {
         send({ type: "confirmation", value: {} });
+      }
+
+      if (!capturedCall && assistantText.trim()) {
+        // The model sometimes writes the step-1 summary but skips the request_confirmation
+        // tool call it's supposed to make right after. Once enough of step 1 has happened,
+        // fall back to showing the button ourselves so the user is never stuck without a
+        // way to proceed to the full analysis.
+        const userTurns = history.filter((entry) => entry.role === "user").length;
+        if (userTurns >= 3) {
+          const existingThesis = await pool.query("select 1 from theses where session_id = $1 limit 1", [session.id]);
+          if (existingThesis.rowCount === 0) {
+            send({ type: "confirmation", value: {} });
+          }
+        }
       }
 
       if (capturedCall && capturedCall.name === PROPOSE_THESIS_FUNCTION && isValidThesisPayload(capturedCall.args)) {
@@ -317,44 +440,41 @@ export async function registerConsultantRoutes(app: FastifyInstance) {
         const thesisId = inserted.rows[0].id;
         send({ type: "thesis", value: { id: thesisId, version, status: "draft", parsedData: normalizedArgs } });
 
-        const followUpContents: Content[] = [
-          ...history,
-          {
-            role: "model",
-            parts: [
-              {
-                functionCall: { id: capturedCall.id, name: capturedCall.name, args: capturedCall.args },
-                thoughtSignature: capturedCall.thoughtSignature
-              }
-            ]
-          },
-          {
-            role: "user",
-            parts: [
-              {
-                functionResponse: {
-                  id: capturedCall.id,
-                  name: capturedCall.name,
-                  response: { status: "saved", thesis_id: thesisId, version }
-                }
-              }
-            ]
-          }
-        ];
+        const ackText = "থিসিসের একটি বিস্তারিত খসড়া তৈরি হয়ে গেছে। পাশের প্যানেলে বা 'থিসিস দেখুন' বাটনে ক্লিক করে এটি পর্যালোচনা করতে পারবেন।";
+        send({ type: "text", value: ackText });
+        assistantText += (assistantText ? "\n" : "") + ackText;
+      }
 
-        const followUpStream = await generateContentStreamWithRetry(client, {
-          model: env.GEMINI_MODEL,
-          contents: followUpContents,
-          config
-        });
+      if (capturedCall && capturedCall.name === CONFIRM_THESIS_FUNCTION) {
+        const latestThesis = await pool.query<{ id: string; version: number; status: string; parsed_data: Record<string, unknown> }>(
+          "select id, version, status, parsed_data from theses where session_id = $1 order by version desc limit 1",
+          [session.id]
+        );
+        const latest = latestThesis.rows[0];
 
-        for await (const chunk of followUpStream) {
-          if (chunk.text) {
-            assistantText += chunk.text;
-            send({ type: "text", value: chunk.text });
-          }
-          if (chunk.usageMetadata) usage = chunk.usageMetadata;
+        let functionResponsePayload: Record<string, unknown>;
+        if (!latest) {
+          functionResponsePayload = { status: "no_draft_found" };
+        } else if (latest.status === "confirmed") {
+          functionResponsePayload = { status: "already_confirmed", thesis_id: latest.id, version: latest.version };
+        } else {
+          const confirmed = await pool.query<{ id: string; version: number }>(
+            "update theses set status = 'confirmed', confirmed_at = now() where id = $1 returning id, version",
+            [latest.id]
+          );
+          const row = confirmed.rows[0];
+          send({ type: "thesis", value: { id: row.id, version: row.version, status: "confirmed", parsedData: latest.parsed_data } });
+          functionResponsePayload = { status: "confirmed", thesis_id: row.id, version: row.version };
         }
+
+        const ackText =
+          functionResponsePayload.status === "confirmed"
+            ? "থিসিসটি সফলভাবে নিশ্চিত করা হয়েছে।"
+            : functionResponsePayload.status === "already_confirmed"
+              ? "থিসিসটি ইতিমধ্যে নিশ্চিত করা আছে।"
+              : "কোনো খসড়া থিসিস পাওয়া যায়নি। আগে বিস্তারিত বিশ্লেষণ করে একটি খসড়া তৈরি করুন।";
+        send({ type: "text", value: ackText });
+        assistantText += (assistantText ? "\n" : "") + ackText;
       }
 
       if (assistantText.trim()) {

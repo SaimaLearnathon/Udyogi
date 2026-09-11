@@ -7,5 +7,5 @@ export const env = {
   SESSION_SECRET: process.env.SESSION_SECRET ?? "development-session-secret",
   EMAIL_LOOKUP_SECRET: process.env.EMAIL_LOOKUP_SECRET ?? "development-email-secret",
   GEMINI_API_KEY: process.env.GEMINI_API_KEY ?? "",
-  GEMINI_MODEL: process.env.GEMINI_MODEL ?? "gemini-3.6-flash"
+  GEMINI_MODEL: process.env.GEMINI_MODEL ?? "gemini-3.5-flash-lite"
 };

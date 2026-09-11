@@ -54,6 +54,7 @@ export function ConsultantPage() {
   const [thesis, setThesis] = useState<DraftThesis | null>(null);
   const [confirming, setConfirming] = useState(false);
   const [awaitingConfirmation, setAwaitingConfirmation] = useState(false);
+  const [statusText, setStatusText] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   function resetToEmptySession(nextMode: ConsultantMode) {
@@ -140,6 +141,7 @@ export function ConsultantPage() {
     setInput("");
     setError(null);
     setAwaitingConfirmation(false);
+    setStatusText("ভাবছি...");
     setSending(true);
 
     const activeSessionId = await ensureSession();
@@ -152,6 +154,7 @@ export function ConsultantPage() {
 
     await sendConsultantMessage(token, activeSessionId, content, {
       onText: (chunk) => {
+        setStatusText(null);
         setMessages((prev) => {
           const next = [...prev];
           const last = next[next.length - 1];
@@ -159,14 +162,23 @@ export function ConsultantPage() {
           return next;
         });
       },
+      onStatus: (value) => {
+        setStatusText(value);
+      },
       onThesis: (draft) => {
+        setStatusText(null);
         setThesis(draft);
         setAwaitingConfirmation(false);
+        if (draft.status === "confirmed") {
+          goTo("thesis", { id: draft.id });
+        }
       },
       onConfirmationRequest: () => {
+        setStatusText(null);
         setAwaitingConfirmation(true);
       },
       onError: (message) => {
+        setStatusText(null);
         setError(message);
         setMessages((prev) => {
           const next = [...prev];
@@ -176,6 +188,7 @@ export function ConsultantPage() {
         });
       },
       onDone: () => {
+        setStatusText(null);
         setMessages((prev) => {
           const next = [...prev];
           const last = next[next.length - 1];
@@ -373,6 +386,16 @@ export function ConsultantPage() {
                 </div>
               </motion.div>
             ))}
+            {statusText && sending && (
+              <motion.p
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="flex items-center gap-1.5 pl-9 text-xs text-base-content/50"
+              >
+                <Loader2 size={12} className="animate-spin" />
+                {statusText}
+              </motion.p>
+            )}
             {awaitingConfirmation && !sending && (
               <motion.div
                 initial={{ opacity: 0, y: 8 }}

@@ -68,6 +68,7 @@ export function getConsultantSession(token: string, sessionId: string) {
 
 export interface ConsultantStreamHandlers {
   onText?: (value: string) => void;
+  onStatus?: (value: string) => void;
   onThesis?: (thesis: { id: string; version: number; status: "draft" | "confirmed"; parsedData: ThesisParsedData }) => void;
   onConfirmationRequest?: () => void;
   onError?: (message: string) => void;
@@ -108,6 +109,7 @@ export async function sendConsultantMessage(token: string, sessionId: string, co
       try {
         const payload = JSON.parse(line.slice("data: ".length));
         if (payload.type === "text") handlers.onText?.(payload.value);
+        else if (payload.type === "status") handlers.onStatus?.(payload.value);
         else if (payload.type === "thesis") handlers.onThesis?.(payload.value);
         else if (payload.type === "confirmation") handlers.onConfirmationRequest?.();
         else if (payload.type === "error") handlers.onError?.(payload.message);
