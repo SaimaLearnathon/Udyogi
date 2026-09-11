@@ -1,1 +1,8 @@
-guideline.md
+node_modules/
+dist/
+coverage/
+.env
+.env.*
+!.env.example
+server/node_modules/
+server/dist/
