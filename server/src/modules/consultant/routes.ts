@@ -485,6 +485,14 @@ export async function registerConsultantRoutes(app: FastifyInstance) {
         const ackText = "থিসিসের একটি বিস্তারিত খসড়া তৈরি হয়ে গেছে। পাশের প্যানেলে বা 'থিসিস দেখুন' বাটনে ক্লিক করে এটি পর্যালোচনা করতে পারবেন।";
         send({ type: "text", value: ackText });
         assistantText += (assistantText ? "\n" : "") + ackText;
+      } else if (capturedCall && capturedCall.name === PROPOSE_THESIS_FUNCTION) {
+        // The model called propose_thesis but left required fields out, so nothing was
+        // saved. Surface that plainly instead of silently doing nothing - otherwise any
+        // text the model wrote about the thesis being ready is left dangling with no
+        // matching button, which is confusing.
+        const retryText = "থিসিসের খসড়াটি সম্পূর্ণভাবে তৈরি করা যায়নি (কিছু তথ্য অসম্পূর্ণ ছিল)। অনুগ্রহ করে আবার চেষ্টা করুন।";
+        send({ type: "text", value: retryText });
+        assistantText += (assistantText ? "\n" : "") + retryText;
       }
 
       if (capturedCall && capturedCall.name === CONFIRM_THESIS_FUNCTION) {
