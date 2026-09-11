@@ -19,3 +19,10 @@ export function confirmThesis(token: string, thesisId: string) {
     headers: { Authorization: `Bearer ${token}` }
   });
 }
+
+export function deleteThesis(token: string, thesisId: string) {
+  return apiRequest<void>(`/api/theses/${thesisId}`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${token}` }
+  });
+}

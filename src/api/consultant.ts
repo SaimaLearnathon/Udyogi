@@ -45,6 +45,13 @@ export function listConsultantSessions(token: string) {
   });
 }
 
+export function deleteConsultantSession(token: string, sessionId: string) {
+  return apiRequest<void>(`/api/consultant/sessions/${sessionId}`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${token}` }
+  });
+}
+
 export function createConsultantSession(token: string, mode: ConsultantMode) {
   return apiRequest<ConsultantSession>("/api/consultant/sessions", {
     method: "POST",
@@ -62,6 +69,7 @@ export function getConsultantSession(token: string, sessionId: string) {
 export interface ConsultantStreamHandlers {
   onText?: (value: string) => void;
   onThesis?: (thesis: { id: string; version: number; status: "draft" | "confirmed"; parsedData: ThesisParsedData }) => void;
+  onConfirmationRequest?: () => void;
   onError?: (message: string) => void;
   onDone?: () => void;
 }
@@ -101,6 +109,7 @@ export async function sendConsultantMessage(token: string, sessionId: string, co
         const payload = JSON.parse(line.slice("data: ".length));
         if (payload.type === "text") handlers.onText?.(payload.value);
         else if (payload.type === "thesis") handlers.onThesis?.(payload.value);
+        else if (payload.type === "confirmation") handlers.onConfirmationRequest?.();
         else if (payload.type === "error") handlers.onError?.(payload.message);
         else if (payload.type === "done") handlers.onDone?.();
       } catch {

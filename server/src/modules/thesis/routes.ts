@@ -95,4 +95,25 @@ export async function registerThesisRoutes(app: FastifyInstance) {
       createdAt: row.created_at
     });
   });
+
+  app.delete("/theses/:id", async (request, reply) => {
+    const userId = await requireUserId(request, reply, pool);
+    if (!userId) return;
+
+    const { id } = request.params as { id: string };
+    try {
+      const result = await pool.query("delete from theses where id = $1 and user_id = $2 returning id", [id, userId]);
+      if (!result.rowCount) return reply.code(404).send({ message: "থিসিস পাওয়া যায়নি" });
+      return reply.code(204).send();
+    } catch (error) {
+      if (isForeignKeyViolation(error)) {
+        return reply.code(409).send({ message: "এই থিসিসটি প্রকাশিত থাকায় মুছে ফেলা যাচ্ছে না" });
+      }
+      throw error;
+    }
+  });
+}
+
+function isForeignKeyViolation(error: unknown): boolean {
+  return typeof error === "object" && error !== null && "code" in error && (error as { code?: string }).code === "23503";
 }

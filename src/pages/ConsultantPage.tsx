@@ -53,6 +53,7 @@ export function ConsultantPage() {
   const [error, setError] = useState<string | null>(null);
   const [thesis, setThesis] = useState<DraftThesis | null>(null);
   const [confirming, setConfirming] = useState(false);
+  const [awaitingConfirmation, setAwaitingConfirmation] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   function resetToEmptySession(nextMode: ConsultantMode) {
@@ -60,6 +61,7 @@ export function ConsultantPage() {
     setMessages([]);
     setThesis(null);
     setError(null);
+    setAwaitingConfirmation(false);
     setMode(nextMode);
   }
 
@@ -137,6 +139,7 @@ export function ConsultantPage() {
 
     setInput("");
     setError(null);
+    setAwaitingConfirmation(false);
     setSending(true);
 
     const activeSessionId = await ensureSession();
@@ -158,6 +161,10 @@ export function ConsultantPage() {
       },
       onThesis: (draft) => {
         setThesis(draft);
+        setAwaitingConfirmation(false);
+      },
+      onConfirmationRequest: () => {
+        setAwaitingConfirmation(true);
       },
       onError: (message) => {
         setError(message);
@@ -180,6 +187,11 @@ export function ConsultantPage() {
     });
 
     setSending(false);
+  }
+
+  function respondToConfirmation(agree: boolean) {
+    setAwaitingConfirmation(false);
+    handleSend(agree ? "হ্যাঁ, বিস্তারিত বিশ্লেষণ করে এগিয়ে যান।" : "না, আমি আরও কিছু তথ্য যোগ করতে চাই।");
   }
 
   async function handleConfirmThesis() {
@@ -361,6 +373,33 @@ export function ConsultantPage() {
                 </div>
               </motion.div>
             ))}
+            {awaitingConfirmation && !sending && (
+              <motion.div
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="flex flex-wrap items-center gap-2 pl-9"
+              >
+                <motion.button
+                  whileHover={{ y: -1 }}
+                  whileTap={{ scale: 0.96 }}
+                  type="button"
+                  onClick={() => respondToConfirmation(true)}
+                  className="btn btn-primary btn-sm gap-1.5"
+                >
+                  <CheckCircle2 size={14} />
+                  হ্যাঁ, বিস্তারিত বিশ্লেষণ করুন
+                </motion.button>
+                <motion.button
+                  whileHover={{ y: -1 }}
+                  whileTap={{ scale: 0.96 }}
+                  type="button"
+                  onClick={() => respondToConfirmation(false)}
+                  className="btn btn-outline btn-sm"
+                >
+                  আরও যোগ করতে চাই
+                </motion.button>
+              </motion.div>
+            )}
           </div>
           <div className="mt-3 flex items-center gap-2 border-t border-base-300 pt-3">
             <input

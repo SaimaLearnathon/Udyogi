@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { Bot, Layers, Loader2, LogIn, MessageSquare, Plus } from "lucide-react";
+import { Bot, Layers, Loader2, LogIn, MessageSquare, Plus, Trash2 } from "lucide-react";
 import { PageHeader } from "../components/ui/PageHeader";
 import { Card } from "../components/ui/Card";
-import { listConsultantSessions, type ConsultantSessionListItem } from "../api/consultant";
+import { ConfirmButton } from "../components/ui/ConfirmButton";
+import { deleteConsultantSession, listConsultantSessions, type ConsultantSessionListItem } from "../api/consultant";
 import { useAuth } from "../context/AuthContext";
 import { useNavigation } from "../context/NavigationContext";
 import { usePageTitle } from "../hooks/usePageTitle";
@@ -18,6 +19,7 @@ export function WorkspacePage() {
 
   const [sessions, setSessions] = useState<ConsultantSessionListItem[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!token) return;
@@ -35,6 +37,20 @@ export function WorkspacePage() {
       cancelled = true;
     };
   }, [token]);
+
+  async function handleDelete(sessionId: string) {
+    if (!token) return;
+    setDeletingId(sessionId);
+    setError(null);
+    try {
+      await deleteConsultantSession(token, sessionId);
+      setSessions((prev) => prev?.filter((session) => session.id !== sessionId) ?? prev);
+    } catch {
+      setError("সেশন মুছে ফেলা যায়নি, আবার চেষ্টা করুন");
+    } finally {
+      setDeletingId(null);
+    }
+  }
 
   if (!token) {
     return (
@@ -94,12 +110,21 @@ export function WorkspacePage() {
               <p className="mt-3 line-clamp-2 text-sm text-base-content/70">
                 {session.lastMessage ?? "কথোপকথন এখনো শুরু হয়নি"}
               </p>
-              <div className="mt-4 flex items-center gap-3 text-xs text-base-content/45">
-                <span className="flex items-center gap-1">
-                  <MessageSquare size={12} />
-                  {session.messageCount} বার্তা
-                </span>
-                <span>{new Date(session.createdAt).toLocaleDateString("bn-BD", { day: "numeric", month: "short" })}</span>
+              <div className="mt-4 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3 text-xs text-base-content/45">
+                  <span className="flex items-center gap-1">
+                    <MessageSquare size={12} />
+                    {session.messageCount} বার্তা
+                  </span>
+                  <span>{new Date(session.createdAt).toLocaleDateString("bn-BD", { day: "numeric", month: "short" })}</span>
+                </div>
+                <ConfirmButton
+                  icon={Trash2}
+                  label="মুছুন"
+                  confirmLabel="নিশ্চিত?"
+                  disabled={deletingId === session.id}
+                  onConfirm={() => handleDelete(session.id)}
+                />
               </div>
             </Card>
           ))}

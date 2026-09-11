@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { CheckCircle2, FileText, Loader2, LogIn } from "lucide-react";
+import { CheckCircle2, FileText, Loader2, LogIn, Trash2 } from "lucide-react";
 import { ThesisSectionList } from "../components/thesis/ThesisSectionList";
 import { PageHeader } from "../components/ui/PageHeader";
 import { Card } from "../components/ui/Card";
-import { confirmThesis, getThesis, listTheses } from "../api/thesis";
+import { ConfirmButton } from "../components/ui/ConfirmButton";
+import { confirmThesis, deleteThesis, getThesis, listTheses } from "../api/thesis";
 import { useAuth } from "../context/AuthContext";
 import { useNavigation } from "../context/NavigationContext";
 import { usePageTitle } from "../hooks/usePageTitle";
@@ -20,6 +21,7 @@ export function ThesisPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [confirming, setConfirming] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     if (!token) {
@@ -62,6 +64,19 @@ export function ThesisPage() {
       setError("থিসিস নিশ্চিত করা যায়নি, আবার চেষ্টা করুন");
     } finally {
       setConfirming(false);
+    }
+  }
+
+  async function handleDelete() {
+    if (!thesis || !token) return;
+    setDeleting(true);
+    setError(null);
+    try {
+      await deleteThesis(token, thesis.id);
+      goTo("workspace");
+    } catch {
+      setError("থিসিস মুছে ফেলা যায়নি, আবার চেষ্টা করুন");
+      setDeleting(false);
     }
   }
 
@@ -114,23 +129,26 @@ export function ThesisPage() {
         title={thesis.parsedData.idea_summary?.solution || "থিসিস"}
         subtitle={`ভার্সন ${thesis.version} · আটটি কাঠামোবদ্ধ সেকশনে পরিকল্পনা পর্যালোচনা।`}
         action={
-          thesis.status === "confirmed" ? (
-            <span className="badge badge-success gap-1.5">
-              <CheckCircle2 size={13} /> নিশ্চিত
-            </span>
-          ) : (
-            <motion.button
-              whileHover={{ y: -1 }}
-              whileTap={{ scale: 0.97 }}
-              type="button"
-              onClick={handleConfirm}
-              disabled={confirming}
-              className="btn btn-primary btn-sm gap-1.5"
-            >
-              {confirming ? <Loader2 size={15} className="animate-spin" /> : <CheckCircle2 size={15} />}
-              থিসিস নিশ্চিত করুন
-            </motion.button>
-          )
+          <div className="flex items-center gap-2">
+            {thesis.status === "confirmed" ? (
+              <span className="badge badge-success gap-1.5">
+                <CheckCircle2 size={13} /> নিশ্চিত
+              </span>
+            ) : (
+              <motion.button
+                whileHover={{ y: -1 }}
+                whileTap={{ scale: 0.97 }}
+                type="button"
+                onClick={handleConfirm}
+                disabled={confirming || deleting}
+                className="btn btn-primary btn-sm gap-1.5"
+              >
+                {confirming ? <Loader2 size={15} className="animate-spin" /> : <CheckCircle2 size={15} />}
+                থিসিস নিশ্চিত করুন
+              </motion.button>
+            )}
+            <ConfirmButton icon={Trash2} label="মুছুন" confirmLabel="নিশ্চিত?" disabled={deleting} onConfirm={handleDelete} />
+          </div>
         }
       />
       {error && (

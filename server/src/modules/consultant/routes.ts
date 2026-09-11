@@ -5,7 +5,9 @@ import { env } from "../../config/env.js";
 import { requireUserId } from "../auth/session.js";
 import {
   PROPOSE_THESIS_FUNCTION,
+  REQUEST_CONFIRMATION_FUNCTION,
   getGeminiClient,
+  requestConfirmationFunctionDeclaration,
   systemInstructionFor,
   thesisFunctionDeclaration,
   type ConsultantMode
@@ -212,6 +214,17 @@ export async function registerConsultantRoutes(app: FastifyInstance) {
     });
   });
 
+  app.delete("/consultant/sessions/:id", async (request, reply) => {
+    const userId = await requireUserId(request, reply, pool);
+    if (!userId) return;
+
+    const { id } = request.params as { id: string };
+    const result = await pool.query("delete from consultant_sessions where id = $1 and user_id = $2 returning id", [id, userId]);
+    if (!result.rowCount) return reply.code(404).send({ message: "সেশন পাওয়া যায়নি" });
+
+    return reply.code(204).send();
+  });
+
   app.post("/consultant/sessions/:id/messages", async (request, reply) => {
     const userId = await requireUserId(request, reply, pool);
     if (!userId) return;
@@ -252,7 +265,7 @@ export async function registerConsultantRoutes(app: FastifyInstance) {
 
     const config = {
       systemInstruction: systemInstructionFor(session.mode),
-      tools: [{ functionDeclarations: [thesisFunctionDeclaration] }]
+      tools: [{ functionDeclarations: [thesisFunctionDeclaration, requestConfirmationFunctionDeclaration] }]
     };
 
     try {
@@ -268,10 +281,14 @@ export async function registerConsultantRoutes(app: FastifyInstance) {
           send({ type: "text", value: chunk.text });
         }
         const calls = chunk.functionCalls;
-        if (calls?.length && calls[0].name && calls[0].args) {
-          capturedCall = { id: calls[0].id, name: calls[0].name, args: calls[0].args };
+        if (calls?.length && calls[0].name) {
+          capturedCall = { id: calls[0].id, name: calls[0].name, args: calls[0].args ?? {} };
         }
         if (chunk.usageMetadata) usage = chunk.usageMetadata;
+      }
+
+      if (capturedCall && capturedCall.name === REQUEST_CONFIRMATION_FUNCTION) {
+        send({ type: "confirmation", value: {} });
       }
 
       if (capturedCall && capturedCall.name === PROPOSE_THESIS_FUNCTION && isValidThesisPayload(capturedCall.args)) {
