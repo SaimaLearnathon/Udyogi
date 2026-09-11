@@ -4,12 +4,6 @@ import { Menu, Sprout, X } from "lucide-react";
 import { ThemeToggle } from "../ui/ThemeToggle";
 import { useNavigation } from "../../context/NavigationContext";
 
-const anchors = [
-  { href: "#nearby", label: "আশেপাশের উদ্যোক্তা" },
-  { href: "#support", label: "সহায়তা ও ফান্ডিং" },
-  { href: "#features", label: "ফিচার" }
-];
-
 export function LandingNav() {
   const { goTo } = useNavigation();
   const [open, setOpen] = useState(false);
@@ -23,14 +17,6 @@ export function LandingNav() {
           </span>
           <p className="text-lg font-bold">উদ্যোগী</p>
         </div>
-
-        <nav className="hidden items-center gap-6 md:flex">
-          {anchors.map((anchor) => (
-            <a key={anchor.href} href={anchor.href} className="text-sm font-medium text-base-content/65 hover:text-base-content">
-              {anchor.label}
-            </a>
-          ))}
-        </nav>
 
         <div className="hidden items-center gap-3 md:flex">
           <ThemeToggle />
@@ -62,17 +48,7 @@ export function LandingNav() {
             className="overflow-hidden border-t border-base-300/60 md:hidden"
           >
             <div className="flex flex-col gap-1 px-4 py-3">
-              {anchors.map((anchor) => (
-                <a
-                  key={anchor.href}
-                  href={anchor.href}
-                  onClick={() => setOpen(false)}
-                  className="rounded-field px-3 py-2 text-sm font-medium text-base-content/70 hover:bg-base-200"
-                >
-                  {anchor.label}
-                </a>
-              ))}
-              <div className="mt-2 flex items-center gap-2 px-3">
+              <div className="flex items-center gap-2 px-3">
                 <button type="button" onClick={() => goTo("login")} className="btn btn-ghost btn-sm flex-1">
                   লগইন
                 </button>

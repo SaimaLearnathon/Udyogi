@@ -113,6 +113,39 @@ function parseGeminiErrorDetails(error: ApiError): GeminiErrorDetails {
 }
 
 const MAX_INLINE_RETRY_DELAY_SECONDS = 5;
+const GENERATION_TIMEOUT_MS = 45_000;
+
+class GenerationTimeoutError extends Error {}
+
+// Bounds how long we'll wait on the Gemini call+stream combined. Without this, a stalled
+// network connection to the API (no error, no chunks, just silence) hangs pumpStream's
+// for-await loop forever, leaving the frontend stuck on "sending" with no way to recover.
+// The original promise is always given a .then() handler so a late resolution/rejection
+// after the timeout fires never becomes an unhandled rejection.
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    const timer = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      reject(new GenerationTimeoutError(`generation timed out after ${ms}ms`));
+    }, ms);
+    promise.then(
+      (value) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (error) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        reject(error);
+      }
+    );
+  });
+}
 
 async function generateContentStreamWithRetry(
   client: ReturnType<typeof getGeminiClient>,
@@ -215,6 +248,9 @@ async function pumpStream(
 }
 
 function describeGeminiError(error: unknown): string {
+  if (error instanceof GenerationTimeoutError) {
+    return "AI সেবাটি সাড়া দিতে অনেক দেরি করছে। আবার চেষ্টা করুন।";
+  }
   if (error instanceof ApiError && error.status === 429) {
     const details = parseGeminiErrorDetails(error);
     if (details.quotaId?.toLowerCase().includes("perday")) {
@@ -380,6 +416,7 @@ export async function registerConsultantRoutes(app: FastifyInstance) {
     });
 
     const send = (event: Record<string, unknown>) => {
+      if (reply.raw.writableEnded) return;
       reply.raw.write(`data: ${JSON.stringify(event)}\n\n`);
     };
 
@@ -395,8 +432,13 @@ export async function registerConsultantRoutes(app: FastifyInstance) {
     try {
       const state: StreamState = { assistantText: "", buffer: "", capturedCall: null, usage: {} };
 
-      const stream = await generateContentStreamWithRetry(client, { model: env.GEMINI_MODEL, contents: history, config });
-      await pumpStream(stream, send, state);
+      await withTimeout(
+        (async () => {
+          const stream = await generateContentStreamWithRetry(client, { model: env.GEMINI_MODEL, contents: history, config });
+          await pumpStream(stream, send, state);
+        })(),
+        GENERATION_TIMEOUT_MS
+      );
       flushStreamBuffer(send, state);
 
       const capturedCall = state.capturedCall;
