@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { Award, Briefcase, Compass, GraduationCap, Loader2, MapPin, Save, Sparkles, UserRound } from "lucide-react";
+import { Award, Briefcase, Compass, GraduationCap, Loader2, MapPin, Save, Sparkles, UserRound, X } from "lucide-react";
 import { updateProfile } from "../api/profile";
 import { ApiError } from "../api/client";
-import { availabilityOptions, fieldOptions, interestOptions, precisionOptions, skillOptions } from "../config/profile";
+import { availabilityOptions, fieldOptions, precisionOptions } from "../config/profile";
 import { PageHeader } from "../components/ui/PageHeader";
 import { Card } from "../components/ui/Card";
 import { CurrentProjectsCard } from "../components/profile/CurrentProjectsCard";
@@ -38,10 +38,6 @@ function SectionCard({
   );
 }
 
-function toggleValue<T>(list: T[], value: T): T[] {
-  return list.includes(value) ? list.filter((item) => item !== value) : [...list, value];
-}
-
 export function ProfilePage() {
   usePageTitle("প্রোফাইল");
   const { user, token, setSession } = useAuth();
@@ -58,6 +54,8 @@ export function ProfilePage() {
   const [precision, setPrecision] = useState<LocationPrecision>("city");
   const [selectedSkills, setSelectedSkills] = useState<string[]>(user?.skills ?? []);
   const [selectedInterests, setSelectedInterests] = useState<string[]>(user?.interests ?? []);
+  const [skillInput, setSkillInput] = useState("");
+  const [interestInput, setInterestInput] = useState("");
   const [linkedinUrl, setLinkedinUrl] = useState(user?.socials?.linkedinUrl ?? "");
   const [facebookUrl, setFacebookUrl] = useState(user?.socials?.facebookUrl ?? "");
   const [portfolioUrl, setPortfolioUrl] = useState(user?.socials?.portfolioUrl ?? "");
@@ -89,6 +87,18 @@ export function ProfilePage() {
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+
+  function addSkill(rawValue: string) {
+    const value = rawValue.trim();
+    if (!value) return;
+    setSelectedSkills((current) => (current.includes(value) ? current : [...current, value]));
+  }
+
+  function addInterest(rawValue: string) {
+    const value = rawValue.trim();
+    if (!value) return;
+    setSelectedInterests((current) => (current.includes(value) ? current : [...current, value]));
+  }
 
   async function handleSave() {
     if (!token) {
@@ -259,41 +269,69 @@ export function ProfilePage() {
 
         <SectionCard icon={Sparkles} title="দক্ষতা ও আগ্রহ" description="যেসব বিষয়ে আপনি অবদান রাখতে পারবেন">
           <div className="space-y-4">
-            <div className="flex flex-wrap gap-2">
-              {skillOptions.map((skill) => {
-                const active = selectedSkills.includes(skill);
-                return (
-                  <motion.button
-                    key={skill}
-                    type="button"
-                    whileTap={{ scale: 0.94 }}
-                    onClick={() => setSelectedSkills((current) => toggleValue(current, skill))}
-                    className={`badge badge-lg cursor-pointer transition-colors ${
-                      active ? "badge-primary" : "badge-outline text-base-content/60"
-                    }`}
-                  >
-                    {skill}
-                  </motion.button>
-                );
-              })}
+            <div>
+              <p className="mb-1.5 text-xs font-semibold text-base-content/60">দক্ষতা</p>
+              <input
+                className="input input-bordered w-full"
+                placeholder="একটি দক্ষতা লিখে Enter চাপুন"
+                value={skillInput}
+                onChange={(event) => setSkillInput(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === ",") {
+                    event.preventDefault();
+                    addSkill(skillInput);
+                    setSkillInput("");
+                  }
+                }}
+              />
+              {selectedSkills.length > 0 && (
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {selectedSkills.map((skill) => (
+                    <span key={skill} className="badge badge-lg badge-primary gap-1.5">
+                      {skill}
+                      <button
+                        type="button"
+                        onClick={() => setSelectedSkills((current) => current.filter((item) => item !== skill))}
+                        aria-label={`${skill} সরান`}
+                      >
+                        <X size={12} />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              )}
             </div>
-            <div className="flex flex-wrap gap-2">
-              {interestOptions.map((interest) => {
-                const active = selectedInterests.includes(interest);
-                return (
-                  <motion.button
-                    key={interest}
-                    type="button"
-                    whileTap={{ scale: 0.94 }}
-                    onClick={() => setSelectedInterests((current) => toggleValue(current, interest))}
-                    className={`badge badge-lg cursor-pointer transition-colors ${
-                      active ? "badge-secondary" : "badge-outline text-base-content/60"
-                    }`}
-                  >
-                    {interest}
-                  </motion.button>
-                );
-              })}
+            <div>
+              <p className="mb-1.5 text-xs font-semibold text-base-content/60">আগ্রহ</p>
+              <input
+                className="input input-bordered w-full"
+                placeholder="একটি আগ্রহের বিষয় লিখে Enter চাপুন"
+                value={interestInput}
+                onChange={(event) => setInterestInput(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === ",") {
+                    event.preventDefault();
+                    addInterest(interestInput);
+                    setInterestInput("");
+                  }
+                }}
+              />
+              {selectedInterests.length > 0 && (
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {selectedInterests.map((interest) => (
+                    <span key={interest} className="badge badge-lg badge-secondary gap-1.5">
+                      {interest}
+                      <button
+                        type="button"
+                        onClick={() => setSelectedInterests((current) => current.filter((item) => item !== interest))}
+                        aria-label={`${interest} সরান`}
+                      >
+                        <X size={12} />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </SectionCard>
