@@ -4,6 +4,7 @@ import { registerAuthRoutes } from "./modules/auth/routes.js";
 import { registerConsultantRoutes } from "./modules/consultant/routes.js";
 import { registerHealthRoutes } from "./modules/health/routes.js";
 import { registerListingRoutes } from "./modules/listings/routes.js";
+import { registerRequestRoutes } from "./modules/requests/routes.js";
 import { registerThesisRoutes } from "./modules/thesis/routes.js";
 
 export function buildApp() {
@@ -15,6 +16,7 @@ export function buildApp() {
   app.register(registerConsultantRoutes, { prefix: "/api" });
   app.register(registerThesisRoutes, { prefix: "/api" });
   app.register(registerListingRoutes, { prefix: "/api" });
+  app.register(registerRequestRoutes, { prefix: "/api" });
 
   return app;
 }

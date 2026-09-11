@@ -14,3 +14,9 @@ export function updateProfile(token: string, payload: ProfilePayload) {
     body: JSON.stringify(payload)
   });
 }
+
+export function getPublicProfile(token: string, userId: string) {
+  return apiRequest<PublicUser>(`/api/users/${userId}`, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+}

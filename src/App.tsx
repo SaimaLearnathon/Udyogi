@@ -13,6 +13,7 @@ import { OnboardingPage } from "./pages/OnboardingPage";
 import { ProfilePage } from "./pages/ProfilePage";
 import { RegisterPage } from "./pages/RegisterPage";
 import { ThesisPage } from "./pages/ThesisPage";
+import { UserProfilePage } from "./pages/UserProfilePage";
 import { WorkspacePage } from "./pages/WorkspacePage";
 
 function CurrentPage() {
@@ -28,6 +29,7 @@ function CurrentPage() {
     thesis: <ThesisPage />,
     matching: <MatchingPage />,
     candidate: <CandidateProfilePage />,
+    user: <UserProfilePage />,
     messages: <MessagesPage />,
     profile: <ProfilePage />
   };

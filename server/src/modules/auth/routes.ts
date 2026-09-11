@@ -340,6 +340,30 @@ export async function registerAuthRoutes(app: FastifyInstance) {
     return reply.send(await buildPublicUser(pool, row));
   });
 
+  app.get("/users/:id", async (request, reply) => {
+    const viewerId = await requireUserId(request, reply, pool);
+    if (!viewerId) return;
+
+    const { id } = request.params as { id: string };
+    const result = await pool.query<UserRow & { location_precision: string }>(
+      `select ${userColumns}, location_precision from users where id = $1`,
+      [id]
+    );
+    const row = result.rows[0];
+    if (!row) return reply.code(404).send({ message: "ব্যবহারকারী পাওয়া যায়নি" });
+
+    const user = await buildPublicUser(pool, row);
+
+    return reply.send({
+      ...user,
+      location: {
+        city: row.location_precision === "region" ? null : user.location.city,
+        region: user.location.region,
+        country: user.location.country
+      }
+    });
+  });
+
   app.patch("/profile", async (request, reply) => {
     const userId = await requireUserId(request, reply, pool);
     if (!userId) return;

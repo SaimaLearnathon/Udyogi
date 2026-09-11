@@ -3,11 +3,13 @@ import { motion } from "framer-motion";
 import { navGroups } from "../../config/navigation";
 import { useNavigation } from "../../context/NavigationContext";
 import { useAuth } from "../../context/AuthContext";
+import { usePendingRequestCount } from "../../hooks/usePendingRequestCount";
 import { ThemeToggle } from "../ui/ThemeToggle";
 
 export function Sidebar() {
   const { page, goTo } = useNavigation();
   const { user, clearSession } = useAuth();
+  const pendingRequestCount = usePendingRequestCount();
 
   function handleLogout() {
     clearSession();
@@ -52,6 +54,9 @@ export function Sidebar() {
                     )}
                     <Icon size={17} className="relative z-10" />
                     <span className="relative z-10">{item.label}</span>
+                    {item.id === "messages" && pendingRequestCount > 0 && (
+                      <span className="badge badge-error badge-sm relative z-10 ml-auto">{pendingRequestCount}</span>
+                    )}
                   </button>
                 );
               })}
