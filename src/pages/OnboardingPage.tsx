@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { ArrowRight, Bot, FileText, Handshake } from "lucide-react";
 import { motion } from "framer-motion";
 import { PageHeader } from "../components/ui/PageHeader";
@@ -7,6 +8,9 @@ import { useAuth } from "../context/AuthContext";
 import { useNavigation } from "../context/NavigationContext";
 import { usePageTitle } from "../hooks/usePageTitle";
 import { staggerContainer, staggerItem } from "../config/motion";
+import { listConsultantSessions } from "../api/consultant";
+import { listTheses } from "../api/thesis";
+import { listMyProjects } from "../api/requests";
 
 const flowSteps = [
   {
@@ -31,8 +35,30 @@ const flowSteps = [
 
 export function OnboardingPage() {
   const { goTo } = useNavigation();
-  const { user } = useAuth();
+  const { user, token } = useAuth();
   usePageTitle("শুরু");
+
+  const [stats, setStats] = useState({ sessions: 0, theses: 0, projects: 0 });
+
+  useEffect(() => {
+    if (!token) return;
+    let cancelled = false;
+
+    Promise.all([listConsultantSessions(token), listTheses(token), listMyProjects(token)])
+      .then(([sessions, theses, projects]) => {
+        if (cancelled) return;
+        setStats({ sessions: sessions.length, theses: theses.length, projects: projects.length });
+      })
+      .catch(() => {
+        // stats are a nice-to-have on this page; leave them at 0 on failure
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [token]);
+
+  const bn = (value: number) => value.toLocaleString("bn-BD");
 
   return (
     <section>
@@ -51,9 +77,9 @@ export function OnboardingPage() {
       />
 
       <motion.div variants={staggerContainer} initial="initial" animate="animate" className="grid gap-3 sm:grid-cols-3">
-        <StatPill label="মূল ফ্লো" value="৩" />
-        <StatPill label="থিসিস সেকশন" value="৮" />
-        <StatPill label="ম্যাচিং স্কোর" value="০-১০০" />
+        <StatPill icon={Bot} label="কনসালট্যান্ট সেশন" value={bn(stats.sessions)} />
+        <StatPill icon={FileText} label="আপনার থিসিস" value={bn(stats.theses)} />
+        <StatPill icon={Handshake} label="সংযুক্ত প্রজেক্ট" value={bn(stats.projects)} />
       </motion.div>
 
       <motion.button

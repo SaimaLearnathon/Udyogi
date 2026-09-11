@@ -337,9 +337,9 @@ export function RegisterPage() {
                           }`}
                         >
                           {active && (
-                            <motion.span layoutId="register-availability" className="absolute inset-0 -z-10 rounded-full bg-primary" />
+                            <motion.span layoutId="register-availability" className="absolute inset-0 rounded-full bg-primary" />
                           )}
-                          {option.label}
+                          <span className="relative">{option.label}</span>
                         </button>
                       );
                     })}
@@ -387,9 +387,9 @@ export function RegisterPage() {
                             }`}
                           >
                             {active && (
-                              <motion.span layoutId="register-precision" className="absolute inset-0 -z-10 rounded-full bg-primary" />
+                              <motion.span layoutId="register-precision" className="absolute inset-0 rounded-full bg-primary" />
                             )}
-                            {option.label}
+                            <span className="relative">{option.label}</span>
                           </button>
                         );
                       })}

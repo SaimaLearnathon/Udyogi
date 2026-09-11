@@ -229,9 +229,9 @@ export function ProfilePage() {
                     }`}
                   >
                     {active && (
-                      <motion.span layoutId="availability-active" className="absolute inset-0 -z-10 rounded-full bg-primary" />
+                      <motion.span layoutId="availability-active" className="absolute inset-0 rounded-full bg-primary" />
                     )}
-                    {option.label}
+                    <span className="relative">{option.label}</span>
                   </button>
                 );
               })}
@@ -258,8 +258,8 @@ export function ProfilePage() {
                       active ? "border-transparent text-primary-content" : "border-base-300 text-base-content/60"
                     }`}
                   >
-                    {active && <motion.span layoutId="precision-active" className="absolute inset-0 -z-10 rounded-full bg-primary" />}
-                    {option.label}
+                    {active && <motion.span layoutId="precision-active" className="absolute inset-0 rounded-full bg-primary" />}
+                    <span className="relative">{option.label}</span>
                   </button>
                 );
               })}
